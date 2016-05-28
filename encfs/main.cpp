@@ -551,10 +551,8 @@ void encfs_destroy(void *_ctx) {}
 #endif 
 
 int main(int argc, char *argv[]) {
-  encfs::initLogging();
 
 #if defined(WIN32)
-
   // Ensure the dokan library exists beforehand 
   HINSTANCE hinstLib;
 #ifdef USE_LEGACY_DOKAN
@@ -599,6 +597,8 @@ int main(int argc, char *argv[]) {
     // subscribe to more logging channels..
     el::Loggers::setVerboseLevel(1);
   }
+
+  encfs::initLogging(encfsArgs->isVerbose);
 
   // fork encfs if we want a daemon (only if not already forked) 
   if (encfsArgs->isDaemon && !encfsArgs->isFork) {
