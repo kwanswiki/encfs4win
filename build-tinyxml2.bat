@@ -1,5 +1,6 @@
 @ECHO OFF
 SETLOCAL
+Setlocal EnableDelayedExpansion
 REM build-tinyxml2.bat
 REM *****************************************************************************
 REM Author:   Charles Munson <jetwhiz@jetwhiz.com>
@@ -47,8 +48,10 @@ if defined INSTALL_DIR (
 
 REM Failed to find tinyxml2 -- ask user if they want us to build it for them
 echo.
-SET /P CONFIRM_BUILD=tinyxml2 was not detected.  Should we install it now? (Y/n): 
-if /I "%CONFIRM_BUILD%"=="n" exit /b 1
+if "%INTERACTIVE%"=="1" (
+    SET /P CONFIRM_BUILD="tinyxml2 was not detected.  Should we install it now? (Y/n): "
+    if /I NOT "!CONFIRM_BUILD!"=="y" exit /b 1
+)
 
 
 REM move into deps folder 

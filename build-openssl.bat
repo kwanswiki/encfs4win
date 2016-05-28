@@ -1,5 +1,6 @@
 @ECHO OFF
 SETLOCAL
+Setlocal EnableDelayedExpansion
 REM build-openssl.bat
 REM *****************************************************************************
 REM Author:   Charles Munson <jetwhiz@jetwhiz.com>
@@ -49,8 +50,10 @@ if defined OPENSSL_ROOT (
 
 REM Failed to find OpenSSL -- ask user if they want us to build it for them
 echo.
-SET /P CONFIRM_BUILD=OpenSSL (OPENSSL_ROOT) was not detected.  Should we install it now? (Y/n): 
-if /I "%CONFIRM_BUILD%"=="n" exit /b 1
+if "%INTERACTIVE%"=="1" (
+    SET /P CONFIRM_BUILD="OpenSSL (OPENSSL_ROOT) was not detected.  Should we install it now? (Y/n): "
+    if /I NOT "!CONFIRM_BUILD!"=="y" exit /b 1
+)
 
 
 REM move into deps folder 
@@ -61,7 +64,7 @@ pushd deps
 REM Clone git repository and switch to VERSION release 
 echo.
 echo ==================================================
-echo            CLONING OPENSSL REPOSITORY             
+echo            CLONING OPENSSL REPOSITORY (%VERSION%)             
 echo ==================================================
 git clone %SOURCE_URI% %SRC_DIR_NAME% > %SRC_DIR_NAME%-clone.log
 pushd %SRC_DIR_NAME%

@@ -22,7 +22,24 @@ REM along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 REM Allow building of encfs4win 2.0
 set ENCFS_MAJOR_VERSION=1
-if /I "%1"=="--beta" set ENCFS_MAJOR_VERSION=2
+
+REM Allow non-interactive building 
+set INTERACTIVE=1
+
+REM process command line parameters 
+:param_loop
+IF NOT "%1"=="" (
+    IF /I "%1"=="--beta" (
+        set ENCFS_MAJOR_VERSION=2
+        SHIFT
+    )
+    IF /I "%1"=="--yes" (
+        SET INTERACTIVE=0
+        SHIFT
+    )
+    SHIFT
+    GOTO :param_loop
+)
 
 
 REM Remember the PWD for encfs4win project
