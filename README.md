@@ -1,5 +1,7 @@
 # encfs4win - Windows port of EncFS 
 
+[![Build status](https://ci.appveyor.com/api/projects/status/5tpsgd73ndv89v3e/branch/master?svg=true)](https://ci.appveyor.com/project/jetwhiz/encfs4win/branch/master)
+
 ## About
 
 EncFS4win is a revival of the original encfs4win project, but has been brought up-to-date with recent changes done to the EncFS project.  The original encfs4win was based on EncFS v1.7.4, which was shown to have some [security issues](https://defuse.ca/audits/encfs.htm). [Updates to EncFS](https://github.com/vgough/encfs) have been done recently to fix many of these issues, and the goal of this project is to port these modernizations to Windows. 
