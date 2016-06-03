@@ -8,9 +8,9 @@ EncFS4win is a revival of the original encfs4win project, but has been brought u
 
 EncFS encrypts individual files, by translating all requests for the virtual EncFS filesystem into the equivalent encrypted operations on the raw filesystem.
 
-EncFS provides an encrypted filesystem in user-space, using the [Dokan library](https://github.com/dokan-dev/dokany) for the filesystem interface. EncFS is open source software, licensed under the LGPL.
-
 A GUI for encfs4win is available through encfsw, providing a tray icon that makes mounting and unmounting encrypted partitions even easier! 
+
+EncFS provides an encrypted filesystem in user-space, using the [Dokan library](https://github.com/dokan-dev/dokany) for the filesystem interface. EncFS is open source software, licensed under the LGPL.
 
 For more info, see:
 
@@ -31,7 +31,7 @@ Encfs4win has a few dependencies:
 * [Dokan library](https://github.com/dokan-dev/dokany) - Handles FUSE portion of software.  You can use either legacy (e.g., v0.7.4) or latest (v1.0). 
 * [TinyXML2 library](https://github.com/leethomason/tinyxml2) - Reads and writes configuration files for encfs.
 * [Easylogging++](https://github.com/easylogging/easyloggingpp) - Provides logging functionality. 
-* [OpenSSL library](https://github.com/openssl/openssl) - Always use the latest version (currently v1.0.2g).  Note that you must have Perl installed in order to build OpenSSL!
+* [OpenSSL library](https://github.com/openssl/openssl) - Always use the latest version (currently v1.0.2h).  Note that you must have Perl installed in order to build OpenSSL!
 
 ### Automated version
 

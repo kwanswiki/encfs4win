@@ -162,7 +162,7 @@ static void usage(const char *name) {
             "    encfs ~/.crypt ~/crypt\n"
             "\n")
        // xgroup(usage)
-       << _("For more information, see the man page encfs(1)") << "\n" << endl;
+       << _("For more information, visit https://github.com/jetwhiz/encfs4win") << "\n" << endl;
 }
 
 static void FuseUsage() {
