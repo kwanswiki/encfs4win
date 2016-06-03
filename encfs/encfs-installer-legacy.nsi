@@ -81,7 +81,10 @@ Section "encfs" SEC04
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\encfs" "UninstallString" "$INSTDIR\uninstall.exe"
   
   # Create uninstaller
-  writeUninstaller "$INSTDIR\uninstall.exe"
+  WriteUninstaller "$INSTDIR\uninstall.exe"
+  
+  # Save install location to registry
+  WriteRegStr HKLM "Software\encfs" "Install_Dir" "$INSTDIR"
   
   # Cleanup
   Delete $INSTDIR\vc_redist-120_x86.exe
@@ -112,4 +115,5 @@ section "Uninstall"
   RMDir /r "$INSTDIR"
   Delete $INSTDIR\uninstall.exe
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\encfs"
+  DeleteRegKey HKLM "Software\encfs"
 sectionEnd
