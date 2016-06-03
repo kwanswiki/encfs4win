@@ -437,6 +437,11 @@ static int cmd_cat(int argc, char **argv) {
   if (!rootInfo) return EXIT_FAILURE;
 
   const char *path = argv[0];
+
+#ifdef _WIN32
+  _setmode(_fileno(stdout), O_BINARY);
+#endif
+
   WriteOutput output(STDOUT_FILENO);
   int errCode = processContents(rootInfo, path, output);
 
