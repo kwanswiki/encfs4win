@@ -86,7 +86,7 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 		CloseHandle(in);
 		strncpy(buf, wchar_to_utf8_cstr(wbuf).c_str(), bufsiz);
 		buf[bufsiz - 1] = 0;
-		printf("\n");
+    fprintf(stderr, "\n");
 		return buf;
 	}
 	CloseHandle(in);
@@ -108,7 +108,7 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 	}
 	*p = '\0';
 	save_errno = errno;
-	printf("\n");
+  fprintf(stderr, "\n");
 	errno = save_errno;
 	return (ch == EOF ? NULL : buf);
 }

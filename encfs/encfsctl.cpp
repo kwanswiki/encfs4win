@@ -415,6 +415,9 @@ int processContents(const std::shared_ptr<EncFS_Root> &rootInfo,
       int res = op(buf, bytes);
       if (res < 0) return res;
     }
+
+    // Ensure everything is pushed to disk 
+    fflush(stdout);
   }
   return 0;
 }
