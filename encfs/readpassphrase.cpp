@@ -68,7 +68,7 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 		return NULL;
 	}
 
-	printf("%s", prompt);
+	fprintf(stderr, "%s", prompt);
 	fflush(stdout);
 
 	/* try to get a real console */
