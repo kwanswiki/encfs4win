@@ -32,6 +32,8 @@
 #define NO_DES
 #include <openssl/ssl.h>
 
+#define ELPP_CUSTOM_COUT std::cerr
+
 #include "Cipher.h"
 #include "CipherKey.h"
 #include "DirNode.h"
