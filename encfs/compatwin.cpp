@@ -517,9 +517,32 @@ int
 unix::rename(const char *oldpath, const char *newpath)
 {
   //VLOG(1) << "NOTIFY -- unix::rename";
-  if (MoveFileExW(utf8_to_wfn(oldpath).c_str(), utf8_to_wfn(newpath).c_str(), MOVEFILE_COPY_ALLOWED))
+
+  // back up old attributes 
+  DWORD backupAttrs = GetFileAttributesW(utf8_to_wfn(oldpath).c_str());
+  if (backupAttrs == INVALID_FILE_ATTRIBUTES) {
+    VLOG(1) << "Error renaming " << oldpath << ": Change attributes failure";
+    errno = ERRNO_FROM_WIN32(GetLastError());
+    return -1;
+  }
+
+  // Remove readonly and system attributes (for move) 
+  SetFileAttributesW(utf8_to_wfn(oldpath).c_str(), backupAttrs & 
+                      (~FILE_ATTRIBUTE_READONLY & ~FILE_ATTRIBUTE_SYSTEM & ~FILE_ATTRIBUTE_HIDDEN));
+
+  if (MoveFileExW(utf8_to_wfn(oldpath).c_str(), utf8_to_wfn(newpath).c_str(), MOVEFILE_COPY_ALLOWED)) {
+
+    // Put back original attributes
+    SetFileAttributesW(utf8_to_wfn(newpath).c_str(), backupAttrs);
+
     return 0;
+  }
+
   errno = ERRNO_FROM_WIN32(GetLastError());
+
+  // Put back original attributes (failed move) 
+  SetFileAttributesW(utf8_to_wfn(oldpath).c_str(), backupAttrs);
+
   return -1;
 }
 
