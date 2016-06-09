@@ -564,7 +564,7 @@ unix::unlink(const char *path)
 int
 unix::rmdir(const char *path)
 {
-  VLOG(1) << "NOTIFY -- unix::rmdir on " << nix_to_winw(path).c_str();
+  VLOG(1) << "NOTIFY -- unix::rmdir";
 
   HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
   if (!SUCCEEDED(hr))

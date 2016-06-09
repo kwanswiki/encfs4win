@@ -175,7 +175,9 @@ static void FuseUsage() {
 
   int argc = 2;
   const char *argv[] = {"...", "-h"};
-  fuse_main(argc, const_cast<char **>(argv), (fuse_operations *)NULL, NULL);
+  fuse_operations encfs_oper;
+  memset(&encfs_oper, 0, sizeof(fuse_operations));
+  fuse_main(argc, const_cast<char **>(argv), &encfs_oper, NULL);
 }
 
 #define PUSHARG(ARG)                        \
