@@ -86,6 +86,7 @@ int closedir(DIR* dir);
 struct dirent* readdir(DIR* dir);
 };
 
+std::wstring nix_to_winw(const std::string& src);
 std::wstring utf8_to_wfn(const std::string& src);
 
 #define mlock(a,b) do { } while(0)

@@ -10,6 +10,7 @@
 #include <winioctl.h>
 #include <direct.h>
 #include <vector>
+#include <Shobjidl.h>
 
 time_t filetimeToUnixTime(const FILETIME *ft);
 
@@ -516,7 +517,7 @@ unix::mkdir(const char *fn, int mode)
 int
 unix::rename(const char *oldpath, const char *newpath)
 {
-  //VLOG(1) << "NOTIFY -- unix::rename";
+  VLOG(1) << "NOTIFY -- unix::rename";
 
   // back up old attributes 
   DWORD backupAttrs = GetFileAttributesW(utf8_to_wfn(oldpath).c_str());
@@ -549,7 +550,11 @@ unix::rename(const char *oldpath, const char *newpath)
 int
 unix::unlink(const char *path)
 {
-  //VLOG(1) << "NOTIFY -- unix::unlink";
+  VLOG(1) << "NOTIFY -- unix::unlink";
+
+  // Ensure it's a vanilla file (not hidden or system) 
+  SetFileAttributesW(utf8_to_wfn(path).c_str(), FILE_ATTRIBUTE_NORMAL);
+
   if (DeleteFileW(utf8_to_wfn(path).c_str()))
     return 0;
   errno = ERRNO_FROM_WIN32(GetLastError());
@@ -559,11 +564,56 @@ unix::unlink(const char *path)
 int
 unix::rmdir(const char *path)
 {
-  //VLOG(1) << "NOTIFY -- unix::rmdir";
-  if (RemoveDirectoryW(utf8_to_wfn(path).c_str()))
-    return 0;
-  errno = ERRNO_FROM_WIN32(GetLastError());
-  return -1;
+  VLOG(1) << "NOTIFY -- unix::rmdir on " << nix_to_winw(path).c_str();
+
+  HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+  if (!SUCCEEDED(hr))
+  {
+    VLOG(1) << "rmdir err: failed to CoInitializeEx";
+    return -1;
+  }
+
+  IFileOperation *pfo;
+  hr = CoCreateInstance(CLSID_FileOperation, NULL, CLSCTX_ALL, IID_PPV_ARGS(&pfo));
+  if (!SUCCEEDED(hr))
+  {
+    VLOG(1) << "rmdir err: failed to CoCreateInstance";
+    return -1;
+  }
+
+  hr = pfo->SetOperationFlags(FOF_NO_UI);
+  if (!SUCCEEDED(hr)) 
+  {
+    VLOG(1) << "rmdir err: failed to SetOperationFlags";
+    return -1;
+  }
+
+  IShellItem* item = NULL;
+  hr = SHCreateItemFromParsingName(nix_to_winw(path).c_str(), NULL, IID_PPV_ARGS(&item));
+  if (!SUCCEEDED(hr)) 
+  {
+    VLOG(1) << "rmdir err: failed to SHCreateItemFromParsingName";
+    return -1;
+  }
+
+  hr = pfo->DeleteItems(item);
+  if (!SUCCEEDED(hr))
+  {
+    VLOG(1) << "rmdir err: failed to DeleteItem";
+    return -1;
+  }
+
+  hr = pfo->PerformOperations();
+  if (!SUCCEEDED(hr))
+  {
+    VLOG(1) << "rmdir err: failed to PerformOperations";
+    return -1;
+  }
+
+  pfo->Release();
+  CoUninitialize();
+
+  return 0;
 }
 
 int
@@ -695,6 +745,20 @@ struct unix::dirent*
   dir->ent.d_name[sizeof(dir->ent.d_name) - 1] = 0;
   dir->ent.d_namlen = strlen(dir->ent.d_name);
   return &dir->ent;
+}
+
+// Similar to utf8_to_wfn, but do not add fn prefixes 
+std::wstring
+nix_to_winw(const std::string& src)
+{
+  //VLOG(1) << "NOTIFY -- nix_to_winw";
+  int len = src.length() + 1;
+  std::vector<wchar_t> buf(len);
+  utf8_to_wchar_buf(src.c_str(), buf.data(), len);
+  for (wchar_t *p = buf.data(); *p; ++p)
+    if (*p == L'/')
+      *p = L'\\';
+  return buf.data();
 }
 
 std::wstring
