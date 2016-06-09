@@ -199,6 +199,40 @@ int encfs_fgetattr(const char *path, struct stat_st *stbuf,
   return withFileNode("fgetattr", path, fi, bind(_do_getattr, _1, stbuf));
 }
 
+int encfs_lock(const char * path, struct fuse_file_info * fi, int cmd, struct flock * locks) {
+  EncFS_Context *ctx = context();
+
+  int res = ESUCCESS;
+  std::shared_ptr<DirNode> FSRoot = ctx->getRoot(&res);
+  if (!FSRoot) return res;
+
+  VLOG(1) << "lock on " << FSRoot->cipherPath(path);
+
+  // convert long long into unsigned long
+  DWORD dwFileOffsetLow, dwFileOffsetHigh, nNumberOfBytesToLockLow, nNumberOfBytesToLockHigh;
+  dwFileOffsetLow = (DWORD)locks->l_start;
+  dwFileOffsetHigh = (DWORD)(locks->l_start >> 32);
+  nNumberOfBytesToLockLow = (DWORD)locks->l_len;
+  nNumberOfBytesToLockHigh = (DWORD)(locks->l_len >> 32);
+
+  BOOL ret;
+  // assume cmd is always F_SETLK
+  if (locks->l_type == F_UNLCK) {
+    ret = UnlockFile((HANDLE)_get_osfhandle(fi->fh), dwFileOffsetLow, dwFileOffsetHigh,
+                        nNumberOfBytesToLockLow, nNumberOfBytesToLockHigh);
+  }
+  else {
+    ret = LockFile((HANDLE)_get_osfhandle(fi->fh), dwFileOffsetLow, dwFileOffsetHigh,
+                        nNumberOfBytesToLockLow, nNumberOfBytesToLockHigh);
+  }
+  if (ret == 0) {
+    VLOG(1) << "lock failed";
+    res = -EIO;
+  }
+
+  return res;
+}
+
 int encfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                   long long offset, struct fuse_file_info *finfo) {
   EncFS_Context *ctx = context();

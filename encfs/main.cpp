@@ -720,7 +720,7 @@ int main(int argc, char *argv[]) {
 #endif
   encfs_oper.ftruncate = encfs_ftruncate;
   encfs_oper.fgetattr = encfs_fgetattr;
-  // encfs_oper.lock = encfs_lock;
+  encfs_oper.lock = encfs_lock;
   encfs_oper.utimens = encfs_utimens;
   // encfs_oper.bmap = encfs_bmap;
 
