@@ -3,7 +3,7 @@
  
 ; HM NIS Edit Wizard helper defines
 !define PRODUCT_NAME "encfs"
-!define PRODUCT_VERSION "1.10.1-RC7"
+!define PRODUCT_VERSION "1.10.1-RC8"
 !define PRODUCT_PUBLISHER "CEMi4"
  
 SetCompressor lzma
