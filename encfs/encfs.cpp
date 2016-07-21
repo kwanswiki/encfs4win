@@ -383,7 +383,7 @@ int encfs_rmdir(const char *path) {
 
 int _do_readlink(EncFS_Context *ctx, const string &cyName, char *buf,
                  size_t size) {
-	return -EINVAL;
+  return -EINVAL;
 
 #if 0
   int res = ESUCCESS;
@@ -563,35 +563,41 @@ int encfs_utimens(const char *path, const struct timespec ts[2]) {
   return withCipherPath("utimens", path, bind(_do_utimens, _1, _2, ts));
 }
 
-bool isFileReadOnly(const char *path) {
-	EncFS_Context *ctx = context();
-	int res = -EIO;
-	shared_ptr<DirNode> FSRoot = ctx->getRoot(&res);
-	if (!FSRoot) return true;
+/* Returns 1 for true, 0 for false and -errno on error */
+int isFileReadOnly(const char *path) {
+  EncFS_Context *ctx = context();
+  int res = -EIO;
+  shared_ptr<DirNode> FSRoot = ctx->getRoot(&res);
+  if (!FSRoot) return true;
 
-	shared_ptr<FileNode> node = FSRoot->lookupNode(path, "open");
-	if (node) {
-		struct stat_st stbuf;
-		int res = node->getAttr(&stbuf);
-		rAssert(res == 0);
-		//VLOG(1) << "Mode: %lo (octal)\n", (unsigned long)stbuf.st_mode;
+  shared_ptr<FileNode> node = FSRoot->lookupNode(path, "open");
+  if (node) {
+    struct stat_st stbuf;
+    int res = node->getAttr(&stbuf);
+    if (res != 0) {
+      RLOG(DEBUG) << "isFileReadOnly failed: getAttr error";
+      return -errno;
+    }
 
-		// No write permissions? 
-		if (S_ISREG(stbuf.st_mode) && !(_S_IWRITE & stbuf.st_mode)) {
-			return true;
-		}
-	}
+    //rAssert(res == 0);
+    //VLOG(1) << "Mode: %lo (octal)\n", (unsigned long)stbuf.st_mode;
 
-	return false;
+    // No write permissions? 
+    if (S_ISREG(stbuf.st_mode) && !(_S_IWRITE & stbuf.st_mode)) {
+      return 1;
+    }
+  }
+
+  return 0;
 }
 
 int encfs_open(const char *path, struct fuse_file_info *file) {
   EncFS_Context *ctx = context();
 
   // Work-around for Dokan read-only file detection problem 
-  if (isFileReadOnly(path) || isReadOnly(ctx)) {
-	  VLOG(1) << "NOTIFY: FIX Read only file switched to read only mode!";
-	  file->flags = O_RDONLY;
+  if (isFileReadOnly(path) == 1 || isReadOnly(ctx)) {
+    VLOG(1) << "NOTIFY: FIX Read only file switched to read only mode!";
+    file->flags = O_RDONLY;
   }
 
   if (isReadOnly(ctx) && (file->flags & O_WRONLY || file->flags & O_RDWR))
@@ -684,7 +690,7 @@ int _do_fsync(FileNode *fnode, int dataSync) {
 }
 
 int encfs_fsync(const char *path, int dataSync, struct fuse_file_info *file) {
-  if (isReadOnly(NULL) || isFileReadOnly(path)) return -EROFS;
+  if (isReadOnly(NULL) || isFileReadOnly(path) == 1) return -EROFS;
   return withFileNode("fsync", path, file, bind(_do_fsync, _1, dataSync));
 }
 
@@ -697,7 +703,7 @@ int _do_write(FileNode *fnode, unsigned char *ptr, size_t size, off_t offset) {
 
 int encfs_write(const char *path, const char *buf, size_t size, long long offset,
                 struct fuse_file_info *file) {
-  if (isReadOnly(NULL) || isFileReadOnly(path)) return -EROFS;
+  if (isReadOnly(NULL) || isFileReadOnly(path) == 1) return -EROFS;
   return withFileNode("write", path, file,
                       bind(_do_write, _1, (unsigned char *)buf, size, offset));
 }
@@ -817,83 +823,83 @@ int encfs_removexattr(const char *path, const char *name) {
 
 static uint32_t encfs_win_get_attributes(const char *fn)
 {
-    EncFS_Context *ctx = context();
+  EncFS_Context *ctx = context();
 
-    int res = -EIO;
-    shared_ptr<DirNode> FSRoot = ctx->getRoot(&res);
-    if(!FSRoot)
-	return res;
+  int res = -EIO;
+  shared_ptr<DirNode> FSRoot = ctx->getRoot(&res);
+  if (!FSRoot)
+    return res;
 
-   std::wstring path = utf8_to_wfn(FSRoot->cipherPath(fn));
-   // TODO error
-   return GetFileAttributesW(path.c_str());
+  std::wstring path = utf8_to_wfn(FSRoot->cipherPath(fn));
+  // TODO error
+  return GetFileAttributesW(path.c_str());
 }
 
 static int encfs_win_set_attributes(const char *fn, uint32_t attr)
 {
-    EncFS_Context *ctx = context();
+  EncFS_Context *ctx = context();
 
-    int res = -EIO;
-    shared_ptr<DirNode> FSRoot = ctx->getRoot(&res);
-    if(!FSRoot)
-	return res;
+  int res = -EIO;
+  shared_ptr<DirNode> FSRoot = ctx->getRoot(&res);
+  if (!FSRoot)
+    return res;
 
-   std::wstring path = utf8_to_wfn(FSRoot->cipherPath(fn));
-   if (SetFileAttributesW(path.c_str(), attr))
-        return 0;
-   return -ERRNO_FROM_WIN32(GetLastError());
+  std::wstring path = utf8_to_wfn(FSRoot->cipherPath(fn));
+  if (SetFileAttributesW(path.c_str(), attr))
+    return 0;
+  return -ERRNO_FROM_WIN32(GetLastError());
 }
 
 static int _do_win_set_times(FileNode *fnode, const FILETIME *create, const FILETIME *access, const FILETIME *modified)
 {
-    /* Flush can be called multiple times for an open file, so it doesn't
-       close the file.  However it is important to call close() for some
-       underlying filesystems (like NFS).
-    */
-    int res = fnode->open( O_RDONLY );
-    if(res >= 0)
-    {
-	if (SetFileTime((HANDLE)_get_osfhandle(res), create, access, modified))
-	    return 0;
-	res = -ERRNO_FROM_WIN32(GetLastError());
-    }
+  /* Flush can be called multiple times for an open file, so it doesn't
+     close the file.  However it is important to call close() for some
+     underlying filesystems (like NFS).
+  */
+  int res = fnode->open(O_RDONLY);
+  if (res >= 0)
+  {
+    if (SetFileTime((HANDLE)_get_osfhandle(res), create, access, modified))
+      return 0;
+    res = -ERRNO_FROM_WIN32(GetLastError());
+  }
 
-    return res;
+  return res;
 }
 
 static int encfs_win_set_times(const char *path, struct fuse_file_info *fi, const FILETIME *create, const FILETIME *access, const FILETIME *modified)
 {
-    if (!fi || !fi->fh)
+  if (!fi || !fi->fh)
+  {
+    int res = -EIO;
+    shared_ptr<DirNode> FSRoot = context()->getRoot(&res);
+    if (!FSRoot)
+      return res;
+
+    std::wstring fn = utf8_to_wfn(FSRoot->cipherPath(path));
+
+    HANDLE f = CreateFileW(fn.c_str(), FILE_WRITE_ATTRIBUTES, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+    if (f == INVALID_HANDLE_VALUE)
+      return -ERRNO_FROM_WIN32(GetLastError());
+
+    if (SetFileTime(f, create, access, modified))
     {
-	int res = -EIO;
-	shared_ptr<DirNode> FSRoot = context()->getRoot(&res);
-	if(!FSRoot)
-	    return res;
-
-	std::wstring fn = utf8_to_wfn(FSRoot->cipherPath(path));
-
-	HANDLE f = CreateFileW(fn.c_str(), FILE_WRITE_ATTRIBUTES, FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
-	if (f == INVALID_HANDLE_VALUE)
-	    return -ERRNO_FROM_WIN32(GetLastError());
-
- 	if (SetFileTime(f, create, access, modified))
-	{
-	    CloseHandle(f);
-	    return 0;
-	}
-	res = -ERRNO_FROM_WIN32(GetLastError());
-	CloseHandle(f);
-	return res;
+      CloseHandle(f);
+      return 0;
     }
-    return withFileNode("win_set_times", path, fi, bind(_do_win_set_times, _1,
-                       create, access, modified));
+    res = -ERRNO_FROM_WIN32(GetLastError());
+    CloseHandle(f);
+    return res;
+  }
+  return withFileNode("win_set_times", path, fi, bind(_do_win_set_times, _1,
+    create, access, modified));
 }
 
 void win_encfs_oper_init(fuse_operations &encfs_oper)
 {
-    encfs_oper.win_set_times = encfs_win_set_times;
-    encfs_oper.win_get_attributes = encfs_win_get_attributes;
-    encfs_oper.win_set_attributes = encfs_win_set_attributes;
+  encfs_oper.win_set_times = encfs_win_set_times;
+  encfs_oper.win_get_attributes = encfs_win_get_attributes;
+  encfs_oper.win_set_attributes = encfs_win_set_attributes;
 }
 
 #endif // WIN32
