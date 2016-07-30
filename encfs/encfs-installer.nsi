@@ -61,8 +61,8 @@ Section "VC++ Redist v140" SEC02
 SectionEnd
 
 Section "Dokany v1.0" SEC03
-  File "..\..\encfs-bin\DokanSetup_1.0.0RC2-redist.exe"
-  ExecWait "$INSTDIR\DokanSetup_1.0.0RC2-redist.exe /install /quiet"
+  File "..\..\encfs-bin\DokanSetup_1.0.0RC4-redist.exe"
+  ExecWait "$INSTDIR\DokanSetup_1.0.0RC4-redist.exe /install /quiet"
 SectionEnd
 
 Section "encfs" SEC04
@@ -89,7 +89,7 @@ Section "encfs" SEC04
   # Cleanup
   Delete $INSTDIR\vc_redist-120_x86.exe
   Delete $INSTDIR\vc_redist-140_x86.exe
-  Delete $INSTDIR\DokanSetup_1.0.0RC2-redist.exe
+  Delete $INSTDIR\DokanSetup_1.0.0RC4-redist.exe
 SectionEnd
 
 LangString DESC_SEC01 ${LANG_ENGLISH} "Microsoft Visual C++ Redistributable 2013"
