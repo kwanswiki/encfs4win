@@ -394,6 +394,10 @@ static bool processArgs(int argc, char *argv[],
 
   if (!out->isThreaded) PUSHARG("-s");
 
+  // Make Dokany think we're always in foreground mode
+  //  in order to force our implementation of bg mode 
+  PUSHARG("-f");
+
   // we should have at least 2 arguments left over - the source directory and
   // the mount point.
   if (optind + 2 <= argc) {
