@@ -37,6 +37,11 @@ static const char rcsid[] =
 
 #ifndef HAVE_READPASSPHRASE
 
+#define WIN32_NO_STATUS
+#include <windows.h>
+#undef WIN32_NO_STATUS
+#include <ntstatus.h>
+
 #include <csignal>
 #include <cstdio>
 #include <cerrno>
@@ -47,7 +52,6 @@ static const char rcsid[] =
 #include <cstring>
 #include <cctype>
 #include <conio.h>
-#include <windows.h>
 #include <wincon.h>
 #include <tchar.h>
 #include <string>

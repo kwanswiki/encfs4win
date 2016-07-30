@@ -1,7 +1,11 @@
 #ifndef _UNISTD_H_
 #define _UNISTD_H_
 
+#define WIN32_NO_STATUS
 #include <windows.h>
+#undef WIN32_NO_STATUS
+#include <ntstatus.h>
+
 #define write fake_write
 #include <io.h>
 #undef write

@@ -5,10 +5,21 @@ Subject: Do not send logs to output file (easyloggingpp)
 
 
 diff --git a/src/easylogging++.h b/src/easylogging++.h
-index f9a67fe..c392c62 100755
+index f9a67fe..d5ba451 100755
 --- a/src/easylogging++.h
 +++ b/src/easylogging++.h
-@@ -789,7 +789,7 @@ namespace consts {
+@@ -316,7 +316,10 @@
+ #   include <sys/time.h>
+ #elif ELPP_OS_WINDOWS
+ #   include <direct.h>
++#   define WIN32_NO_STATUS
+ #   include <windows.h>
++#   undef WIN32_NO_STATUS
++#   include <ntstatus.h>
+ #   if defined(WIN32_LEAN_AND_MEAN)
+ #      if defined(ELPP_WINSOCK2)
+ #         include <winsock2.h>
+@@ -789,7 +792,7 @@ namespace consts {
      static const char* kDefaultLogFile                         =      "logs/myeasylog.log";
  #      endif  // ELPP_OS_ANDROID
  #   elif ELPP_OS_WINDOWS

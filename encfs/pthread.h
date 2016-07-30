@@ -1,10 +1,14 @@
 #ifndef __PTHREAD_H
 #define __PTHREAD_H
 
+#define WIN32_NO_STATUS
+#include <windows.h>
+#undef WIN32_NO_STATUS
+#include <ntstatus.h>
+
 #include "encfs.h"
 #include "fuse_win.h"
 #include "fusemain.h"
-#include <windows.h>
 #include <stdio.h>
 #include <io.h>
 #include "dirent.h"
