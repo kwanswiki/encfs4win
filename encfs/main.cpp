@@ -684,7 +684,6 @@ int main(int argc, char *argv[]) {
 
   encfs_oper.getattr = encfs_getattr;
   encfs_oper.readlink = encfs_readlink;
-  encfs_oper.readdir = encfs_readdir;
   encfs_oper.mknod = encfs_mknod;
   encfs_oper.mkdir = encfs_mkdir;
   encfs_oper.unlink = encfs_unlink;
@@ -717,7 +716,10 @@ int main(int argc, char *argv[]) {
   encfs_oper.destroy = encfs_destroy;
   // encfs_oper.access = encfs_access;
 #ifndef USE_LEGACY_DOKAN
+  encfs_oper.readdir = encfs_readdir;
   encfs_oper.create = encfs_create;
+#else
+  encfs_oper.getdir = encfs_getdir;  // deprecated for readdir
 #endif
   encfs_oper.ftruncate = encfs_ftruncate;
   encfs_oper.fgetattr = encfs_fgetattr;

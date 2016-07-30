@@ -277,6 +277,43 @@ int encfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
   }
 }
 
+int encfs_getdir(const char *path, fuse_dirh_t h, fuse_dirfil_t filler) {
+  EncFS_Context *ctx = context();
+
+  int res = ESUCCESS;
+  std::shared_ptr<DirNode> FSRoot = ctx->getRoot(&res);
+  if (!FSRoot) return res;
+
+  try {
+
+    DirTraverse dt = FSRoot->openDir(path);
+
+    VLOG(1) << "getdir on " << FSRoot->cipherPath(path);
+
+    if (dt.valid()) {
+      int fileType = 0;
+      ino_t inode = 0;
+
+      std::string name = dt.nextPlaintextName(&fileType, &inode);
+      while (!name.empty()) {
+        res = filler(h, name.c_str(), fileType, inode);
+
+        if (res != ESUCCESS) break;
+
+        name = dt.nextPlaintextName(&fileType, &inode);
+      }
+    } else {
+      VLOG(1) << "getdir request invalid, path: '" << path << "'";
+    }
+
+    return res;
+  }
+  catch (encfs::Error &err) {
+    RLOG(ERROR) << "Error caught in getdir";
+    return -EIO;
+  }
+}
+
 int encfs_mknod(const char *path, mode_t mode, dev_t rdev) {
   EncFS_Context *ctx = context();
 

@@ -74,6 +74,7 @@ struct fuse_file_info *fi);
 int encfs_lock(const char * path, struct fuse_file_info * fi, int cmd, 
 struct flock * locks);
 int encfs_readlink(const char *path, char *buf, size_t size);
+int encfs_getdir(const char *path, fuse_dirh_t h, fuse_dirfil_t filler);
 int encfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                   long long offset, struct fuse_file_info *finfo);
 int encfs_mknod(const char *path, mode_t mode, dev_t rdev);
