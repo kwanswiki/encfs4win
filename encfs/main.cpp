@@ -662,11 +662,23 @@ int main(int argc, char *argv[]) {
       return EXIT_FAILURE;
     }
 
-    // Wait for mount 
-    for (unsigned n = 0; n < 5 * 10; ++n) {
-      WaitForSingleObject(piProcInfo.hProcess, 200);
+    // Wait indefinitely for mount (or problem) 
+    for (;;) {
+      DWORD waitCode = WaitForSingleObject(piProcInfo.hProcess, 500);
 
+      // Check if the wait failed
+      if (waitCode == WAIT_FAILED) {
+        cerr << _("Internal error: Forked child process has encountered an error!\n");
+        ExitProcess(GetLastError());
+      }
+
+      // If all is well, check if FS is mounted yet (stop waiting if it is) 
       if (GetDriveType(encfsArgs->opts->mountPoint.c_str()) != DRIVE_NO_ROOT_DIR)
+        break;
+
+      // If the wait didn't timeout, child has exited/signalled
+      // Should we return child's exit code with GetExitCodeProcess? 
+      if (waitCode != WAIT_TIMEOUT)
         break;
     }
 
