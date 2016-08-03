@@ -628,13 +628,22 @@ unix::stat(const char *path, struct stat_st *buffer)
     return -1;
   }
 
-  WIN32_FIND_DATAW wfd;
-  HANDLE hff = FindFirstFileW(fn.c_str(), &wfd);
+
+  // We need an active file handle in order to get the file index ID 
+  HANDLE hff = CreateFileW(fn.c_str(), GENERIC_READ,
+    FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+    NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
   if (hff == INVALID_HANDLE_VALUE) {
     errno = ERRNO_FROM_WIN32(GetLastError());
     return -1;
   }
-  FindClose(hff);
+  BY_HANDLE_FILE_INFORMATION wfd;
+  if (!GetFileInformationByHandle(hff, &wfd)) {
+    errno = ERRNO_FROM_WIN32(GetLastError());
+    return -1;
+  }
+  CloseHandle(hff);
+
 
   int drive;
   if (path[1] == ':')
@@ -642,17 +651,19 @@ unix::stat(const char *path, struct stat_st *buffer)
   else
     drive = _getdrive() - 1;
 
+
   unsigned mode;
   if (wfd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
     mode = _S_IFDIR | 0777;
   else
     mode = _S_IFREG | 0666;
+  // Set attributes of file/directory
   if (wfd.dwFileAttributes & FILE_ATTRIBUTE_READONLY)
     mode &= ~0222;
-  // TODO executable ?? link ??
+
 
   buffer->st_dev = buffer->st_rdev = drive;
-  buffer->st_ino = 0;
+  buffer->st_ino = wfd.nFileIndexHigh * (((uint64_t)1) << 32) + wfd.nFileIndexLow;
   buffer->st_mode = mode;
   buffer->st_nlink = 1;
   buffer->st_uid = 0;
@@ -744,6 +755,13 @@ struct unix::dirent*
   strncpy(dir->ent.d_name, path.c_str(), sizeof(dir->ent.d_name));
   dir->ent.d_name[sizeof(dir->ent.d_name) - 1] = 0;
   dir->ent.d_namlen = strlen(dir->ent.d_name);
+
+  // Figure out the inode number for this file 
+  struct stat_st stbuf;
+  memset(&stbuf, 0, sizeof(struct stat_st));
+  unix::stat(path.c_str(), &stbuf);
+  dir->ent.d_ino = stbuf.st_ino;
+
   return &dir->ent;
 }
 

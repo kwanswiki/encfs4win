@@ -345,7 +345,7 @@ int encfs_mknod(const char *path, mode_t mode, dev_t rdev) {
       std::shared_ptr<FileNode> dnode =
           FSRoot->lookupNode(parent.c_str(), "mknod");
 
-	  struct stat_st st;
+	    struct stat_st st;
       if (dnode->getAttr(&st) == 0)
         res = fnode->mknod(mode, rdev, uid, st.st_gid);
     }
@@ -380,7 +380,7 @@ int encfs_mkdir(const char *path, mode_t mode) {
       std::shared_ptr<FileNode> dnode =
           FSRoot->lookupNode(parent.c_str(), "mkdir");
 
-	  struct stat_st st;
+	    struct stat_st st;
       if (dnode->getAttr(&st) == 0)
         res = FSRoot->mkdir(path, mode, uid, st.st_gid);
     }
