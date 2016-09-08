@@ -15,7 +15,9 @@ set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
   "${CMAKE_SOURCE_DIR}/cmake")
 
 option (BUILD_SHARED_LIBS "build shared libraries" OFF)
-option (USE_INTERNAL_TINYXML "use build-in TinyXML2" ON)
+option (USE_INTERNAL_TINYXML "use built-in TinyXML2" ON)
+option (ENABLE_NLS "compile with Native Language Support (using gettext)" ON)
+option (INSTALL_LIBENCFS "install libencfs" OFF)
 
 # We need C++ 11
 if (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} GREATER 3.0)
@@ -30,6 +32,8 @@ else ()
     message ("** No CMAKE C++11 check. If the build breaks, you're on your own.")
   endif()
 endif ()
+
+add_definitions( -DPACKAGE="encfs" )
 
 # http://www.cmake.org/Wiki/CMake_RPATH_handling#Mac_OS_X_and_the_RPATH
 if (APPLE)
@@ -65,7 +69,6 @@ else ()
 endif ()
 
 find_program (POD2MAN pod2man)
-include (FindGettext)
 
 # Check for include files and stdlib properties.
 include (CheckIncludeFileCXX)
@@ -115,6 +118,14 @@ configure_file (${CMAKE_SOURCE_DIR}/config.h.cmake
 include_directories (${CMAKE_BINARY_DIR})
 include_directories (${CMAKE_SOURCE_DIR})
 
+# Translations
+if (ENABLE_NLS)
+  add_subdirectory(po)
+
+  add_definitions(-DENABLE_NLS)
+  add_definitions(-DLOCALEDIR="${CMAKE_INSTALL_PREFIX}/share/locale")
+endif (ENABLE_NLS)
+
 set(SOURCE_FILES
   encfs/autosprintf.cpp
   encfs/base64.cpp
@@ -155,7 +166,9 @@ target_link_libraries(encfs
   ${TINYXML_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
 )
-install (TARGETS encfs DESTINATION lib)
+if (INSTALL_LIBENCFS)
+  install (TARGETS encfs DESTINATION lib)
+endif (INSTALL_LIBENCFS)
 
 if (IWYU)
   if (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} GREATER 3.2)
@@ -204,17 +217,6 @@ if (POD2MAN)
   install (FILES ${CMAKE_BINARY_DIR}/encfs.1 ${CMAKE_BINARY_DIR}/encfsctl.1
     DESTINATION share/man/man1)
 endif (POD2MAN)
-
-# Translations
-if (GETTEXT_FOUND)
-  file(GLOB po_files "po/*.po")
-  foreach(pofile ${po_files})
-    get_filename_component(lang ${pofile} NAME_WE)
-    #message("-- Found gettext PO file for ${lang}: ${pofile}")
-
-    gettext_process_po_files(${lang} ALL PO_FILES ${pofile})
-  endforeach()
-endif (GETTEXT_FOUND)
 
 # Tests
 enable_testing()
