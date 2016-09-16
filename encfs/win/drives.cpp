@@ -120,8 +120,6 @@ void Drive::Mount(HWND hwnd)
   Save(); // save for resume
 }
 
-extern "C" BOOL WINAPI AttachConsole(DWORD);
-
 static BOOL WINAPI HandlerRoutine(DWORD)
 {
   return TRUE;
