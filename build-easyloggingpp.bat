@@ -23,8 +23,8 @@ REM along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 REM versioning variables 
-set VERSION=v9.80
-set VERSION_STR=v9.80
+set VERSION=v9.83
+set VERSION_STR=v9.83
 set SOURCE_URI=https://github.com/easylogging/easyloggingpp.git
 
 
@@ -69,7 +69,7 @@ git reset --hard %VERSION%
 git checkout %VERSION%
 
 REM Patch bug in toFile 
-git apply ../easyloggingpp.patch
+git apply --ignore-whitespace ../easyloggingpp.patch
 
 REM verify necessary libraries were successfully installed  
 if NOT exist "%INSTALL_DIR%\src\easylogging++.h" goto :build_failure
