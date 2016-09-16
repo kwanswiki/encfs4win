@@ -909,7 +909,7 @@ static bool selectUniqueIV(bool default_answer) {
   // xgroup(setup)
   return boolDefault(
       _("Enable per-file initialization vectors?\n"
-        "For NTFS only! This adds about 8 bytes per file to the storage requirements.\n"
+        "This adds about 8 bytes per file to the storage requirements.\n"
         "It should not affect performance except possibly with applications\n"
         "which rely on block-aligned file io for performance."),
       default_answer);
@@ -1013,7 +1013,7 @@ RootPtr createV6Config(EncFS_Context *ctx,
     }
 
     // xgroup(setup)
-    cout << _("Paranoia configuration selected.  This should only be used on NTFS filesystems!") << "\n";
+    cout << _("Paranoia configuration selected.") << "\n";
     // look for AES with 256 bit key..
     // Use block filename encryption mode.
     // Enable per-block HMAC headers at substantial performance penalty..
