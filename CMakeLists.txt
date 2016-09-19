@@ -4,9 +4,9 @@ project(EncFS C CXX)
 
 set (ENCFS_MAJOR 1)
 set (ENCFS_MINOR 9)
-set (ENCFS_PATCH 0)
+set (ENCFS_PATCH 1)
 set (ENCFS_VERSION "${ENCFS_MAJOR}.${ENCFS_MINOR}.${ENCFS_PATCH}")
-set (ENCFS_SOVERSION "1.9")
+set (ENCFS_SOVERSION "${ENCFS_MAJOR}.${ENCFS_MINOR}")
 set (ENCFS_NAME "Encrypted Filesystem")
 
 option(IWYU "Build with IWYU analyais." OFF)
@@ -18,6 +18,10 @@ option (BUILD_SHARED_LIBS "build shared libraries" OFF)
 option (USE_INTERNAL_TINYXML "use built-in TinyXML2" ON)
 option (ENABLE_NLS "compile with Native Language Support (using gettext)" ON)
 option (INSTALL_LIBENCFS "install libencfs" OFF)
+
+if (NOT DEFINED LIB_INSTALL_DIR)
+  set (LIB_INSTALL_DIR lib)
+endif ()
 
 # We need C++ 11
 if (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} GREATER 3.0)
@@ -43,11 +47,11 @@ if (APPLE)
    set(CMAKE_MACOSX_RPATH ON)
    set(CMAKE_SKIP_BUILD_RPATH FALSE)
    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-   set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+   set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${LIB_INSTALL_DIR}")
    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-   list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+   list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/${LIB_INSTALL_DIR}" isSystemDir)
    if("${isSystemDir}" STREQUAL "-1")
-     set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+     set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${LIB_INSTALL_DIR}")
    endif()
 endif()
 
@@ -99,6 +103,7 @@ find_package (Threads REQUIRED)
 
 # Logging.
 add_definitions (-DELPP_THREAD_SAFE -DELPP_DISABLE_DEFAULT_CRASH_HANDLING)
+add_definitions (-DELPP_NO_DEFAULT_LOG_FILE)
 check_include_file_cxx (syslog.h HAVE_SYSLOG_H)
 if (HAVE_SYSLOG_H)
   message ("-- Enabled syslog logging support")
@@ -123,6 +128,11 @@ include_directories (${CMAKE_SOURCE_DIR})
 
 # Translations
 if (ENABLE_NLS)
+  find_package (Intl)
+  if (Intl_FOUND)
+    include_directories (${Intl_INCLUDE_DIRS})
+  endif()
+
   add_subdirectory(po)
 
   add_definitions(-DENABLE_NLS)
@@ -168,9 +178,10 @@ target_link_libraries(encfs
   ${OPENSSL_LIBRARIES}
   ${TINYXML_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
+  ${Intl_LIBRARIES}
 )
 if (INSTALL_LIBENCFS)
-  install (TARGETS encfs DESTINATION lib)
+  install (TARGETS encfs DESTINATION ${LIB_INSTALL_DIR})
 endif (INSTALL_LIBENCFS)
 
 if (IWYU)
@@ -185,7 +196,7 @@ endif()
 
 
 # Set RPATH to library install path.
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${LIB_INSTALL_DIR}")
 
 add_executable (encfs-bin encfs/main.cpp)
 target_link_libraries (encfs-bin encfs)
