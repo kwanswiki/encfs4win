@@ -5,8 +5,6 @@
 #include <stdexcept>
 
 #define LENGTH(v) (sizeof(v)/sizeof(v[0]))
-std::string wchar_to_utf8_cstr(const wchar_t *str);
-void utf8_to_wchar_buf(const char *src, wchar_t *res, int maxlen);
 
 class wruntime_error
 {
