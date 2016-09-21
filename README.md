@@ -17,6 +17,8 @@ For more info, see:
  - The excellent [encfs manpage](encfs/encfs.pod)
  - The technical overview in [DESIGN.md](DESIGN.md)
 
+**NOTE:** *Be sure to use a drive (like "X:") as plain_dir to avoid case sensitive problems which results in file/folder not found problems!*
+
 ## Installing
 
 Installation is as simple as a few clicks!  Simply download the latest encfs4win installer from [encfs4win/releases](https://github.com/jetwhiz/encfs4win/releases) (encfs4win-installer.exe) and run it.  

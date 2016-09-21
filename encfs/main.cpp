@@ -506,6 +506,13 @@ static bool processArgs(int argc, char *argv[],
   // fill in mount path for fuse
   out->fuseArgv[1] = out->opts->mountPoint.c_str();
 
+  // Temporary fix (hopefully) for issue #51
+  // Must mount to drive letter, otherwise there are case-sensitivity issues 
+  if (!out->opts->mountPoint.empty() && out->opts->mountPoint.back() != ':')
+  {
+    RLOG(WARNING) << "Caution: Mount directly to a drive letter (e.g., X:) to prevent file/folder not found issues!";
+  }
+
   return true;
 }
 
