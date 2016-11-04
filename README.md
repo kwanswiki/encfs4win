@@ -33,7 +33,7 @@ Encfs4win has a few dependencies:
 * [Dokan library](https://github.com/dokan-dev/dokany) - Handles FUSE portion of software.  You can use either legacy (e.g., v0.7.4) or latest (v1.0). 
 * [TinyXML2 library](https://github.com/leethomason/tinyxml2) - Reads and writes configuration files for encfs.
 * [Easylogging++](https://github.com/easylogging/easyloggingpp) - Provides logging functionality. 
-* [OpenSSL library](https://github.com/openssl/openssl) - Always use the latest version (currently v1.0.2h).  Note that you must have Perl installed in order to build OpenSSL!
+* [OpenSSL library](https://github.com/openssl/openssl) - Always use the latest version (currently v1.0.2j).  Note that you must have Perl installed in order to build OpenSSL!
 
 ### Automated version
 
