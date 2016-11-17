@@ -21,9 +21,11 @@ For more info, see:
 
 ## Installing
 
-Installation is as simple as a few clicks!  Simply download the latest encfs4win installer from [encfs4win/releases](https://github.com/jetwhiz/encfs4win/releases) (encfs4win-installer.exe) and run it.  
+Installation is as simple as a few clicks!  Simply download the latest encfs4win installer from [encfs4win/releases](https://github.com/jetwhiz/encfs4win/releases) (e.g., encfs4win-installer.exe) and run it.  
 
 The installer contains everything needed to run encfs on Windows, including the encfs executables, OpenSSL libraries, and all necessary MS Visual C++ libraries. It will also automatically install the Dokan library (if it is not already installed). 
+
+Encfs4win is also now available through the [Chocolatey](https://github.com/chocolatey/choco) package manager.  For installation instructions via choco, please refer to https://chocolatey.org/packages/encfs4win.
 
 ## Building
 
