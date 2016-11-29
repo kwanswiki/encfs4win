@@ -126,7 +126,7 @@ static int withFileNode(const char *opName, const char *path,
 
     auto do_op = [&FSRoot, opName, &op](FileNode *fnode) {
       rAssert(fnode != nullptr);
-      //VLOG(1) << "op: " << opName << " : " << fnode->cipherName();
+      VLOG(1) << "op: " << opName << " : " << fnode->cipherName();
 
       // check that we're not recursing into the mount point itself
       if (FSRoot->touchesMountpoint(fnode->cipherName())) {
