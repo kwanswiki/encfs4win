@@ -31,7 +31,7 @@
 namespace encfs {
 
 struct IORequest {
-  off_t offset;
+  FUSE_OFF_T offset;
 
   // amount of bytes to read/write.
   int dataLen;
@@ -65,12 +65,12 @@ class FileIO {
 
   // get filesystem attributes for a file
   virtual int getAttr(struct stat_st *stbuf) const = 0;
-  virtual off_t getSize() const = 0;
+  virtual FUSE_OFF_T getSize() const = 0;
 
   virtual ssize_t read(const IORequest &req) const = 0;
   virtual bool write(const IORequest &req) = 0;
 
-  virtual int truncate(off_t size) = 0;
+  virtual int truncate(FUSE_OFF_T size) = 0;
 
   virtual bool isWritable() const = 0;
 

@@ -86,7 +86,7 @@ const char *MACFileIO::getFileName() const { return base->getFileName(); }
 
 bool MACFileIO::setIV(uint64_t iv) { return base->setIV(iv); }
 
-inline static off_t roundUpDivide(off_t numerator, int denominator) {
+inline static FUSE_OFF_T roundUpDivide(FUSE_OFF_T numerator, int denominator) {
   // integer arithmetic always rounds down, so we can round up by adding
   // enough so that any value other then a multiple of denominator gets
   // rouned to the next highest value.
@@ -103,8 +103,8 @@ inline static off_t roundUpDivide(off_t numerator, int denominator) {
 //   ... blockNum = 1
 //   ... partialBlock = 0
 //   ... adjLoc = 1 * blockSize
-static off_t locWithHeader(off_t offset, int blockSize, int headerSize) {
-  off_t blockNum = roundUpDivide(offset, blockSize - headerSize);
+static FUSE_OFF_T locWithHeader(FUSE_OFF_T offset, int blockSize, int headerSize) {
+  FUSE_OFF_T blockNum = roundUpDivide(offset, blockSize - headerSize);
   return offset + blockNum * headerSize;
 }
 
@@ -113,8 +113,8 @@ static off_t locWithHeader(off_t offset, int blockSize, int headerSize) {
 // The output value will always be less then the input value, because the
 // headers are stored at the beginning of the block, so even the first data is
 // offset by the size of the header.
-static off_t locWithoutHeader(off_t offset, int blockSize, int headerSize) {
-  off_t blockNum = roundUpDivide(offset, blockSize);
+static FUSE_OFF_T locWithoutHeader(FUSE_OFF_T offset, int blockSize, int headerSize) {
+  FUSE_OFF_T blockNum = roundUpDivide(offset, blockSize);
   return offset - blockNum * headerSize;
 }
 
@@ -131,12 +131,12 @@ int MACFileIO::getAttr(struct stat_st *stbuf) const {
   return res;
 }
 
-off_t MACFileIO::getSize() const {
+FUSE_OFF_T MACFileIO::getSize() const {
   // adjust the size to hide the header overhead we tack on..
   int headerSize = macBytes + randBytes;
   int bs = blockSize() + headerSize;
 
-  off_t size = base->getSize();
+  FUSE_OFF_T size = base->getSize();
   if (size > 0) size = locWithoutHeader(size, bs, headerSize);
 
   return size;
@@ -247,7 +247,7 @@ bool MACFileIO::writeOneBlock(const IORequest &req) {
   return ok;
 }
 
-int MACFileIO::truncate(off_t size) {
+int MACFileIO::truncate(FUSE_OFF_T size) {
   int headerSize = macBytes + randBytes;
   int bs = blockSize() + headerSize;
 

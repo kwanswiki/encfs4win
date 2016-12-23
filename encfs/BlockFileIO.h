@@ -48,8 +48,8 @@ class BlockFileIO : public FileIO {
   virtual int blockSize() const;
 
  protected:
-  int truncateBase(off_t size, FileIO *base);
-  void padFile(off_t oldSize, off_t newSize, bool forceWrite);
+  int truncateBase(FUSE_OFF_T size, FileIO *base);
+  void padFile(FUSE_OFF_T oldSize, FUSE_OFF_T newSize, bool forceWrite);
 
   // same as read(), except that the request.offset field is guarenteed to be
   // block aligned, and the request size will not be larger then 1 block.

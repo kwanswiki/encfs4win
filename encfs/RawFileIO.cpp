@@ -176,7 +176,7 @@ void RawFileIO::setFileName(const char *fileName) { name = fileName; }
 
 const char *RawFileIO::getFileName() const { return name.c_str(); }
 
-off_t RawFileIO::getSize() const {
+FUSE_OFF_T RawFileIO::getSize() const {
   if (!knownSize) {
 	struct stat_st stbuf;
     memset(&stbuf, 0, sizeof(struct stat_st));
@@ -215,7 +215,7 @@ bool RawFileIO::write(const IORequest &req) {
   int retrys = 10;
   void *buf = req.data;
   ssize_t bytes = req.dataLen;
-  off_t offset = req.offset;
+  FUSE_OFF_T offset = req.offset;
 
   while (bytes && retrys > 0) {
     ssize_t writeSize = unix::pwrite(fd, buf, bytes, offset);
@@ -240,7 +240,7 @@ bool RawFileIO::write(const IORequest &req) {
     return false;
   } else {
     if (knownSize) {
-      off_t last = req.offset + req.dataLen;
+      FUSE_OFF_T last = req.offset + req.dataLen;
       if (last > fileSize) fileSize = last;
     }
 
@@ -248,7 +248,7 @@ bool RawFileIO::write(const IORequest &req) {
   }
 }
 
-int RawFileIO::truncate(off_t size) {
+int RawFileIO::truncate(FUSE_OFF_T size) {
   int res;
 
   if (fd >= 0 && canWrite) {
