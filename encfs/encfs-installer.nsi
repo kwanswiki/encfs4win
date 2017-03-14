@@ -3,7 +3,7 @@
  
 ; HM NIS Edit Wizard helper defines
 !define PRODUCT_NAME "encfs"
-!define PRODUCT_VERSION "1.10.1-RC10"
+!define PRODUCT_VERSION "1.10.1-RC11"
 !define PRODUCT_PUBLISHER "CEMi4"
  
 SetCompressor lzma
@@ -61,8 +61,8 @@ Section "VC++ Redist v140" SEC02
 SectionEnd
 
 Section "Dokany v1.0" SEC03
-  File "..\..\encfs-bin\DokanSetup_redist-1.0.1.exe"
-  ExecWait "$INSTDIR\DokanSetup_redist-1.0.1.exe /install /quiet"
+  File "..\..\encfs-bin\DokanSetup_redist-1.0.2.exe"
+  ExecWait "$INSTDIR\DokanSetup_redist-1.0.2.exe /install /quiet"
 SectionEnd
 
 Section "encfs" SEC04
@@ -89,7 +89,7 @@ Section "encfs" SEC04
   # Cleanup
   Delete $INSTDIR\vc_redist-120_x86.exe
   Delete $INSTDIR\vc_redist-140_x86.exe
-  Delete $INSTDIR\DokanSetup_redist-1.0.1.exe
+  Delete $INSTDIR\DokanSetup_redist-1.0.2.exe
 SectionEnd
 
 LangString DESC_SEC01 ${LANG_ENGLISH} "Microsoft Visual C++ Redistributable 2013"
