@@ -222,7 +222,7 @@ ssize_t FileNode::read(FUSE_OFF_T offset, unsigned char *data, ssize_t size) con
 }
 
 bool FileNode::write(FUSE_OFF_T offset, unsigned char *data, ssize_t size) {
-  //VLOG(1) << "FileNode::write offset " << offset << ", data size " << size;
+  VLOG(1) << "FileNode::write offset " << offset << ", data size " << size;
 
   IORequest req;
   req.offset = offset;
