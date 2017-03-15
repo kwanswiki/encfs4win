@@ -117,7 +117,7 @@ ssize_t BlockFileIO::read(const IORequest &req) const {
   CHECK(_blockSize != 0);
 
   int partialOffset = req.offset % _blockSize;
-  off_t blockNum = req.offset / _blockSize;
+  FUSE_OFF_T blockNum = req.offset / _blockSize;
   ssize_t result = 0;
 
   if (partialOffset == 0 && req.dataLen <= _blockSize) {
@@ -175,18 +175,18 @@ ssize_t BlockFileIO::read(const IORequest &req) const {
 bool BlockFileIO::write(const IORequest &req) {
   CHECK(_blockSize != 0);
 
-  off_t fileSize = getSize();
+  FUSE_OFF_T fileSize = getSize();
   if (fileSize < 0) return false;
 
   // where write request begins
-  off_t blockNum = req.offset / _blockSize;
+  FUSE_OFF_T blockNum = req.offset / _blockSize;
   int partialOffset = req.offset % _blockSize;
 
   // last block of file (for testing write overlaps with file boundary)
-  off_t lastFileBlock = fileSize / _blockSize;
+  FUSE_OFF_T lastFileBlock = fileSize / _blockSize;
   ssize_t lastBlockSize = fileSize % _blockSize;
 
-  off_t lastNonEmptyBlock = lastFileBlock;
+  FUSE_OFF_T lastNonEmptyBlock = lastFileBlock;
   if (lastBlockSize == 0) --lastNonEmptyBlock;
 
   if (req.offset > fileSize) {
@@ -271,9 +271,9 @@ bool BlockFileIO::write(const IORequest &req) {
 
 int BlockFileIO::blockSize() const { return _blockSize; }
 
-void BlockFileIO::padFile(off_t oldSize, off_t newSize, bool forceWrite) {
-  off_t oldLastBlock = oldSize / _blockSize;
-  off_t newLastBlock = newSize / _blockSize;
+void BlockFileIO::padFile(FUSE_OFF_T oldSize, FUSE_OFF_T newSize, bool forceWrite) {
+  FUSE_OFF_T oldLastBlock = oldSize / _blockSize;
+  FUSE_OFF_T newLastBlock = newSize / _blockSize;
   int newBlockSize = newSize % _blockSize;
 
   IORequest req;
@@ -343,11 +343,11 @@ void BlockFileIO::padFile(off_t oldSize, off_t newSize, bool forceWrite) {
   if (mb.data) MemoryPool::release(mb);
 }
 
-int BlockFileIO::truncateBase(off_t size, FileIO *base) {
+int BlockFileIO::truncateBase(FUSE_OFF_T size, FileIO *base) {
   int partialBlock = size % _blockSize;
   int res = 0;
 
-  off_t oldSize = getSize();
+  FUSE_OFF_T oldSize = getSize();
 
   if (size > oldSize) {
     // truncate can be used to extend a file as well.  truncate man page
@@ -364,7 +364,7 @@ int BlockFileIO::truncateBase(off_t size, FileIO *base) {
     // partial block after truncate.  Need to read in the block being
     // truncated before the truncate.  Then write it back out afterwards,
     // since the encoding will change..
-    off_t blockNum = size / _blockSize;
+    FUSE_OFF_T blockNum = size / _blockSize;
     MemBlock mb = MemoryPool::allocate(_blockSize);
 
     IORequest req;

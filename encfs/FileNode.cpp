@@ -203,14 +203,14 @@ int FileNode::getAttr(struct stat_st *stbuf) const {
   return res;
 }
 
-off_t FileNode::getSize() const {
+FUSE_OFF_T FileNode::getSize() const {
   Lock _lock(mutex);
 
   int res = io->getSize();
   return res;
 }
 
-ssize_t FileNode::read(off_t offset, unsigned char *data, ssize_t size) const {
+ssize_t FileNode::read(FUSE_OFF_T offset, unsigned char *data, ssize_t size) const {
   IORequest req;
   req.offset = offset;
   req.dataLen = size;
@@ -221,7 +221,7 @@ ssize_t FileNode::read(off_t offset, unsigned char *data, ssize_t size) const {
   return io->read(req);
 }
 
-bool FileNode::write(off_t offset, unsigned char *data, ssize_t size) {
+bool FileNode::write(FUSE_OFF_T offset, unsigned char *data, ssize_t size) {
   VLOG(1) << "FileNode::write offset " << offset << ", data size " << size;
 
   IORequest req;
@@ -234,7 +234,7 @@ bool FileNode::write(off_t offset, unsigned char *data, ssize_t size) {
   return io->write(req);
 }
 
-int FileNode::truncate(off_t size) {
+int FileNode::truncate(FUSE_OFF_T size) {
   Lock _lock(mutex);
 
   return io->truncate(size);

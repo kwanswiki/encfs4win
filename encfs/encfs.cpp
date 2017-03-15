@@ -557,7 +557,7 @@ int encfs_chown(const char *path, uid_t uid, gid_t gid) {
   return withCipherPath("chown", path, bind(_do_chown, _1, _2, uid, gid));
 }
 
-int _do_truncate(FileNode *fnode, off_t size) { return fnode->truncate(size); }
+int _do_truncate(FileNode *fnode, FUSE_OFF_T size) { return fnode->truncate(size); }
 
 int encfs_truncate(const char *path, long long size) {
   if (isReadOnly(NULL)) return -EROFS;
@@ -718,7 +718,7 @@ int encfs_release(const char *path, struct fuse_file_info *finfo) {
   }
 }
 
-int _do_read(FileNode *fnode, unsigned char *ptr, size_t size, off_t off) {
+int _do_read(FileNode *fnode, unsigned char *ptr, size_t size, FUSE_OFF_T off) {
   return fnode->read(off, ptr, size);
 }
 
@@ -737,7 +737,7 @@ int encfs_fsync(const char *path, int dataSync, struct fuse_file_info *file) {
   return withFileNode("fsync", path, file, bind(_do_fsync, _1, dataSync));
 }
 
-int _do_write(FileNode *fnode, unsigned char *ptr, size_t size, off_t offset) {
+int _do_write(FileNode *fnode, unsigned char *ptr, size_t size, FUSE_OFF_T offset) {
   if (fnode->write(offset, ptr, size))
     return size;
   else

@@ -156,8 +156,8 @@ int CipherFileIO::getAttr(struct stat_st *stbuf) const {
  * Get the size for an upper file
  * See getAttr() for an explaination of the reverse handling
  */
-off_t CipherFileIO::getSize() const {
-  off_t size = base->getSize();
+FUSE_OFF_T CipherFileIO::getSize() const {
+  FUSE_OFF_T size = base->getSize();
   // No check on S_ISREG here -- don't call getSize over getAttr unless this
   // is a normal file!
   if (haveHeader && size > 0) {
@@ -174,7 +174,7 @@ off_t CipherFileIO::getSize() const {
 void CipherFileIO::initHeader() {
   // check if the file has a header, and read it if it does..  Otherwise,
   // create one.
-  off_t rawSize = base->getSize();
+  FUSE_OFF_T rawSize = base->getSize();
   if (rawSize >= HEADER_SIZE) {
     VLOG(1) << "reading existing header, rawSize = " << rawSize;
     // has a header.. read it
@@ -312,7 +312,7 @@ void CipherFileIO::generateReverseHeader(unsigned char *headerBuf) {
  */
 ssize_t CipherFileIO::readOneBlock(const IORequest &req) const {
   int bs = blockSize();
-  off_t blockNum = req.offset / bs;
+  FUSE_OFF_T blockNum = req.offset / bs;
 
   ssize_t readSize = 0;
   IORequest tmpReq = req;
@@ -356,7 +356,7 @@ bool CipherFileIO::writeOneBlock(const IORequest &req) {
   }
 
   int bs = blockSize();
-  off_t blockNum = req.offset / bs;
+  FUSE_OFF_T blockNum = req.offset / bs;
 
   if (haveHeader && fileIV == 0) initHeader();
 
@@ -424,7 +424,7 @@ bool CipherFileIO::streamRead(unsigned char *buf, int size,
     return cipher->streamDecode(buf, size, _iv64, key);
 }
 
-int CipherFileIO::truncate(off_t size) {
+int CipherFileIO::truncate(FUSE_OFF_T size) {
   int res = 0;
   if (!haveHeader) {
     res = BlockFileIO::truncateBase(size, base.get());
