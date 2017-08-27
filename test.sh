@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/bin/bash -eu
 
-set -eux
+./build/checkops &> /dev/null
 
-if [ ! -d build ]
-then
-	./build.sh
-fi
+for i in $(mount | grep -e "/tmp/encfs-reverse-tests-\|/tmp/encfs-tests-" | cut -f3 -d" "); do
+	echo "Warning: unmounting leftover filesystem: $i"
+	fusermount -u $i
+done
 
-perl -MTest::Harness -e '$$Test::Harness::verbose=1; runtests @ARGV;' tests/*.t.pl
+perl -MTest::Harness -e '$$Test::Harness::debug=1; runtests @ARGV;' tests/*.t.pl

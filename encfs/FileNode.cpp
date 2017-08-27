@@ -53,16 +53,21 @@ namespace encfs {
 */
 
 FileNode::FileNode(DirNode *parent_, const FSConfigPtr &cfg,
-                   const char *plaintextName_, const char *cipherName_) {
+                   const char *plaintextName_, const char *cipherName_, uint64_t fuseFh) {
+
   pthread_mutex_init(&mutex, 0);
 
   Lock _lock(mutex);
+
+  this->canary = CANARY_OK;
 
   this->_pname = plaintextName_;
   this->_cname = cipherName_;
   this->parent = parent_;
 
   this->fsConfig = cfg;
+
+  this->fuseFh = fuseFh;
 
   // chain RawFileIO & CipherFileIO
   std::shared_ptr<FileIO> rawIO(new RawFileIO(_cname));
@@ -76,6 +81,7 @@ FileNode::~FileNode() {
   // FileNode mutex should be locked before the destructor is called
   // pthread_mutex_lock( &mutex );
 
+  canary = CANARY_DESTROYED;
   _pname.assign(_pname.length(), '\0');
   _cname.assign(_cname.length(), '\0');
   io.reset();

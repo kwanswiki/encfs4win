@@ -653,14 +653,23 @@ std::shared_ptr<FileNode> DirNode::renameNode(const char *from, const char *to,
 
   return node;
 }
+
+// findOrCreate checks if we already have a FileNode for "plainName" and
+// creates a new one if we don't. Returns the FileNode.
 std::shared_ptr<FileNode> DirNode::findOrCreate(const char *plainName) {
   std::shared_ptr<FileNode> node;
-  if (ctx) node = ctx->lookupNode(plainName);
+
+  // See if we already have a FileNode for this path.
+  if (ctx)
+    node = ctx->lookupNode(plainName);
+
+  // If we don't, create a new one.
   if (!node) {
     uint64_t iv = 0;
     string cipherName = naming->encodePath(plainName, &iv);
+	uint64_t fuseFh = ctx->nextFuseFh();
     node.reset(new FileNode(this, fsConfig, plainName,
-                            (rootDir + cipherName).c_str()));
+                            (rootDir + cipherName).c_str(), fuseFh));
 
     if (fsConfig->config->externalIVChaining) node->setName(0, 0, iv);
 
@@ -678,9 +687,11 @@ shared_ptr<FileNode> DirNode::lookupNode(const char *plainName,
 
 /*
     Similar to lookupNode, except that we also call open() and only return a
-    node on sucess..  This is done in one step to avoid any race conditions
+    node on sucess.  This is done in one step to avoid any race conditions
     with the stored state of the file.
-*/ std::shared_ptr<FileNode> DirNode::openNode(const char *plainName,
+    "result" is set to -1 on failure, a value >= 0 on success.
+*/
+std::shared_ptr<FileNode> DirNode::openNode(const char *plainName,
                                                const char *requestor, int flags,
                                                int *result) {
   (void)requestor;

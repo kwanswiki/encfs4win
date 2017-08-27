@@ -177,7 +177,7 @@ bool userAllowMkdir(int promptno, const char *path, mode_t mode) {
   // xgroup(setup)
   cerr << autosprintf(
       _("The directory \"%s\" does not exist. Should it be created? "
-        "(y,n) "),
+        "(y,N) "),
       path);
   char answer[10];
   char *res;
@@ -538,12 +538,12 @@ bool writeV6Config(const char *configFile, const EncFSConfig *cfg) {
   addEl(doc, config, "nameAlg", cfg->nameIface);
   addEl(doc, config, "keySize", cfg->keySize);
   addEl(doc, config, "blockSize", cfg->blockSize);
-  addEl(doc, config, "uniqueIV", cfg->uniqueIV);
-  addEl(doc, config, "chainedNameIV", cfg->chainedNameIV);
-  addEl(doc, config, "externalIVChaining", cfg->externalIVChaining);
+  addEl(doc, config, "uniqueIV", (int)cfg->uniqueIV);
+  addEl(doc, config, "chainedNameIV", (int)cfg->chainedNameIV);
+  addEl(doc, config, "externalIVChaining", (int)cfg->externalIVChaining);
   addEl(doc, config, "blockMACBytes", cfg->blockMACBytes);
   addEl(doc, config, "blockMACRandBytes", cfg->blockMACRandBytes);
-  addEl(doc, config, "allowHoles", cfg->allowHoles);
+  addEl(doc, config, "allowHoles", (int)cfg->allowHoles);
   addEl(doc, config, "encodedKeySize", (int)cfg->keyData.size());
   addEl(doc, config, "encodedKeyData", cfg->keyData);
   addEl(doc, config, "saltLen", (int)cfg->salt.size());
@@ -1053,6 +1053,12 @@ RootPtr createV6Config(EncFS_Context *ctx,
     if (opts->requireMac) {
       blockMACBytes = 8;
     }
+    if (reverseEncryption) {
+      /* Reverse mounts are read-only by default (set in main.cpp).
+       * If uniqueIV is off, writing can be allowed, because there
+       * is no header that could be overwritten */
+      if (uniqueIV == false) opts->readOnly = false;
+    }
   }
 
   if (answer[0] == 'x' || alg.name.empty()) {
@@ -1351,6 +1357,11 @@ CipherKey EncFSConfig::makeKey(const char *password, int passwdLen) {
   CipherKey userKey;
   std::shared_ptr<Cipher> cipher = getCipher();
 
+  if (passwdLen == 0) {
+    cerr << _("fatal: zero-length passwords are not allowed\n");
+    exit(1);
+  }
+
   // if no salt is set and we're creating a new password for a new
   // FS type, then initialize salt..
   if (salt.size() == 0 && kdfIterations == 0 && cfgType >= Config_V6) {
@@ -1392,10 +1403,12 @@ CipherKey EncFSConfig::getUserKey(bool useStdin) {
   }
 
   CipherKey userKey;
-  if (!res)
-    cerr << _("Zero length password not allowed\n");
-  else
+  if (!res) {
+    cerr << _("fatal: error reading password\n");
+    exit(1);
+  } else {
     userKey = makeKey(passBuf, strlen(passBuf));
+  }
 
   memset(passBuf, 0, sizeof(passBuf));
 

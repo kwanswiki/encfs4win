@@ -46,11 +46,6 @@
 #include "i18n.h"
 #include "openssl.h"
 
-// Fuse version >= 26 requires another argument to fuse_unmount, which we
-// don't have.  So use the backward compatible call instead..
-//extern "C" void fuse_unmount_compat22(const char *mountpoint);
-//#define fuse_unmount fuse_unmount_compat22
-
 /* Arbitrary identifiers for long options that do
  * not have a short version */
 #define LONG_OPT_ANNOTATE 513
@@ -62,7 +57,6 @@ using namespace std;
 using namespace encfs;
 using gnu::autosprintf;
 
-INITIALIZE_EASYLOGGINGPP
 
 // Allow signal handlers to access mount context 
 std::shared_ptr<EncFS_Context> saved_ctx = NULL;
@@ -88,6 +82,7 @@ struct EncFS_Args {
   int idleTimeout;  // 0 == idle time in minutes to trigger unmount
   const char *fuseArgv[MaxFuseArgs];
   int fuseArgc;
+  std::string syslogTag;  // syslog tag to use when logging using syslog
 
   std::shared_ptr<EncFS_Opts> opts;
 
@@ -210,6 +205,7 @@ static bool processArgs(int argc, char *argv[],
   out->isVerbose = false;
   out->idleTimeout = 0;
   out->fuseArgc = 0;
+  out->syslogTag = "encfs";
   out->opts->idleTracking = false;
   out->opts->checkKey = true;
   out->opts->forceDecode = false;
@@ -245,6 +241,7 @@ static bool processArgs(int argc, char *argv[],
       {"extpass", 1, 0, 'p'},           // external password program
       // {"single-thread", 0, 0, 's'},  // single-threaded mode
       {"stdinpass", 0, 0, 'S'},  // read password from stdin
+      {"syslogtag", 1, 0, 't'},         // syslog tag
       {"annotate", 0, 0,
        LONG_OPT_ANNOTATE},                  // Print annotation lines to stderr
       {"nocache", 0, 0, LONG_OPT_NOCACHE},  // disable caching
@@ -268,8 +265,9 @@ static bool processArgs(int argc, char *argv[],
     // 'm' : mount-on-demand
     // 'S' : password from stdin
     // 'o' : arguments meant for fuse
+    // 't' : syslog tag
     int res =
-        getopt_long(argc, argv, "HsSfvdmi:o:", long_options, &option_index);
+        getopt_long(argc, argv, "HsSfvdmi:o:t:", long_options, &option_index);
 
     if (res == -1) break;
 
@@ -285,6 +283,9 @@ static bool processArgs(int argc, char *argv[],
         break;
       case 'S':
         out->opts->useStdin = true;
+        break;
+      case 't':
+        out->syslogTag = optarg;
         break;
       case LONG_OPT_ANNOTATE:
         out->opts->annotate = true;
@@ -606,12 +607,8 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
 
-  if (encfsArgs->isVerbose) {
-    // subscribe to more logging channels..
-    el::Loggers::setVerboseLevel(1);
-  }
-
-  encfs::initLogging(encfsArgs->isVerbose);
+  encfs::initLogging(encfsArgs->isVerbose, encfsArgs->isDaemon);
+  ELPP_INITIALIZE_SYSLOG(encfsArgs->syslogTag.c_str(), 0, 0);
 
   // fork encfs if we want a daemon (only if not already forked) 
   if (encfsArgs->isDaemon && !encfsArgs->isFork) {
@@ -896,31 +893,37 @@ static void *idleMonitor(void *_arg) {
   const int timeoutCycles = 60 * arg->idleTimeout / ActivityCheckInterval;
   int idleCycles = -1;
 
+  bool unmountres = false;
+
+  // We will notify when FS will be unmounted, so notify that it has just been mounted
+  RLOG(INFO) << "Filesystem mounted: " << arg->opts->mountPoint;
+
   pthread_mutex_lock(&ctx->wakeupMutex);
 
   while (ctx->running) {
-    int usage = ctx->getAndResetUsageCounter();
+    int usage, openCount;
+    ctx->getAndResetUsageCounter(&usage, &openCount);
 
     if (usage == 0 && ctx->isMounted())
       ++idleCycles;
-    else
+    else {
+      if (idleCycles >= timeoutCycles)
+        RLOG(INFO) << "Filesystem no longer inactive: "
+                   << arg->opts->mountPoint;
       idleCycles = 0;
+    }
 
     if (idleCycles >= timeoutCycles) {
-      int openCount = ctx->openFileCount();
       if (openCount == 0) {
-	    VLOG(1) << "Preparing to unmount due to inactivity: "
-		  << arg->opts->mountPoint;
-		
-        if (unmountFS(ctx)) {
+        unmountres = unmountFS(ctx);
+        if (unmountres) {
           // wait for main thread to wake us up
           pthread_cond_wait(&ctx->wakeupCond, &ctx->wakeupMutex);
           break;
         }
       } else {
-        RLOG(WARNING) << "Filesystem " << arg->opts->mountPoint
-                      << " inactivity detected, but still " << openCount
-                      << " opened files";
+        RLOG(WARNING) << "Filesystem inactive, but " << openCount
+                      << " files opened: " << arg->opts->mountPoint;
       }
     }
 
@@ -937,6 +940,10 @@ static void *idleMonitor(void *_arg) {
 
   pthread_mutex_unlock(&ctx->wakeupMutex);
 
+  // If we are here FS has been unmounted, so if we did not unmount ourselves (manual, kill...), notify
+  if (!unmountres)
+    RLOG(INFO) << "Filesystem unmounted: " << arg->opts->mountPoint;
+
   VLOG(1) << "Idle monitoring thread exiting";
 
   return 0;
@@ -952,9 +959,13 @@ static bool unmountFS(EncFS_Context *ctx) {
     return false;
   } else {
     // Time to unmount!
-    RLOG(WARNING) << "Unmounting filesystem: "
-                  << arg->opts->mountPoint;
+#if FUSE_USE_VERSION < 30
     fuse_unmount(arg->opts->mountPoint.c_str(), NULL);
+#else
+    fuse_unmount(fuse_get_context()->fuse);
+#endif
+    // fuse_unmount succeeds and returns void
+    RLOG(INFO) << "Filesystem inactive, unmounted: " << arg->opts->mountPoint;
     return true;
   }
 }

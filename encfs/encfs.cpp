@@ -112,6 +112,25 @@ static int withCipherPath(const char *opName, const char *path,
   return res;
 }
 
+static void checkCanary(std::shared_ptr<FileNode> fnode) {
+  if(fnode->canary == CANARY_OK) {
+    return;
+  }
+  if(fnode->canary == CANARY_RELEASED) {
+    // "fnode" may have been released after it was retrieved by
+    // lookupFuseFh. This is not an error. std::shared_ptr will release
+    // the memory only when all operations on the FileNode have been
+    // completed.
+    return;
+  }
+  if(fnode->canary == CANARY_DESTROYED) {
+    RLOG(ERROR) << "canary=CANARY_DESTROYED. FileNode accessed after it was destroyed.";
+  } else {
+    RLOG(ERROR) << "canary=0x" << std::hex << fnode->canary << ". Memory corruption?";
+  }
+  throw Error("dead canary");
+}
+
 // helper function -- apply a functor to a node
 static int withFileNode(const char *opName, const char *path,
                         struct fuse_file_info *fi,
@@ -124,8 +143,9 @@ static int withFileNode(const char *opName, const char *path,
 
   try {
 
-    auto do_op = [&FSRoot, opName, &op](FileNode *fnode) {
+    auto do_op = [&FSRoot, opName, &op](std::shared_ptr<FileNode> fnode) {
       rAssert(fnode != nullptr);
+      checkCanary(fnode);
       VLOG(1) << "op: " << opName << " : " << fnode->cipherName();
 
       // check that we're not recursing into the mount point itself
@@ -134,13 +154,19 @@ static int withFileNode(const char *opName, const char *path,
                 << fnode->cipherName() << "'";
         return -EIO;
       }
-      return op(fnode);
+      return op(fnode.get());
     };
 
-    if (fi != nullptr && fi->fh != 0)
-      res = do_op(reinterpret_cast<FileNode *>(fi->fh));
-    else
-      res = do_op(FSRoot->lookupNode(path, opName).get());
+    if (fi != nullptr && fi->fh != 0) {
+      auto node = ctx->lookupFuseFh(fi->fh);
+      if (node == nullptr) {
+        auto msg = "fh=" + std::to_string(fi->fh) + " not found in fuseFhMap";
+        throw Error(msg.c_str());
+      }
+      res = do_op(node);
+    } else {
+      res = do_op(FSRoot->lookupNode(path, opName));
+    }
 
     if (res < 0) {
       RLOG(DEBUG) << "op: " << opName << " error: " << strerror(-res);
@@ -654,8 +680,8 @@ int encfs_open(const char *path, struct fuse_file_info *file) {
               << file->flags;
 
       if (res >= 0) {
-        file->fh =
-            reinterpret_cast<uintptr_t>(ctx->putNode(path, std::move(fnode)));
+        ctx->putNode(path, fnode);
+        file->fh = fnode->fuseFh;
         res = ESUCCESS;
       }
     }
@@ -710,7 +736,8 @@ int encfs_release(const char *path, struct fuse_file_info *finfo) {
   EncFS_Context *ctx = context();
 
   try {
-    ctx->eraseNode(path, reinterpret_cast<FileNode *>(finfo->fh));
+    auto fnode = ctx->lookupFuseFh(finfo->fh);
+    ctx->eraseNode(path, fnode);
     return ESUCCESS;
   } catch (encfs::Error &err) {
     RLOG(ERROR) << "error caught in release: " << err.what();
@@ -829,11 +856,14 @@ int encfs_getxattr(const char *path, const char *name, char *value,
 
 int _do_listxattr(EncFS_Context *, const string &cyName, char *list,
                   size_t size) {
+#ifndef XATTR_LLIST
+#define llistxattr listxattr
+#endif
 #ifdef XATTR_ADD_OPT
   int options = 0;
-  int res = ::listxattr(cyName.c_str(), list, size, options);
+  int res = ::llistxattr(cyName.c_str(), list, size, options);
 #else
-  int res = ::listxattr(cyName.c_str(), list, size);
+  int res = ::llistxattr(cyName.c_str(), list, size);
 #endif
   return (res == -1) ? -errno : res;
 }

@@ -21,12 +21,14 @@
 #ifndef _Context_incl_
 #define _Context_incl_
 
-#include <forward_list>
+#include <list>
+#include <algorithm>
 #include <memory>
 #include "pthread.h"
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <atomic>
 
 #include "encfs.h"
 
@@ -44,12 +46,11 @@ class EncFS_Context {
 
   std::shared_ptr<FileNode> lookupNode(const char *path);
 
-  int getAndResetUsageCounter();
-  int openFileCount() const;
+  void getAndResetUsageCounter(int *usage, int *openCount);
+  
+  void putNode(const char *path, std::shared_ptr<FileNode> node);
 
-  FileNode *putNode(const char *path, std::shared_ptr<FileNode> &&node);
-
-  void eraseNode(const char *path, FileNode *fnode);
+  void eraseNode(const char *path, std::shared_ptr<FileNode> fnode);
 
   void renameNode(const char *oldName, const char *newName);
 
@@ -70,6 +71,9 @@ class EncFS_Context {
   pthread_cond_t wakeupCond;
   pthread_mutex_t wakeupMutex;
 
+  uint64_t nextFuseFh();
+  std::shared_ptr<FileNode> lookupFuseFh(uint64_t);
+
  private:
   /* This placeholder is what is referenced in FUSE context (passed to
    * callbacks).
@@ -82,7 +86,7 @@ class EncFS_Context {
    */
 
   typedef std::unordered_map<std::string,
-                             std::forward_list<std::shared_ptr<FileNode>>>
+                             std::list<std::shared_ptr<FileNode>>>
       FileMap;
 
   mutable pthread_mutex_t contextMutex;
@@ -90,6 +94,9 @@ class EncFS_Context {
 
   int usageCount;
   std::shared_ptr<DirNode> root;
+
+  std::atomic<std::uint64_t> currentFuseFh;
+  std::unordered_map<uint64_t, std::shared_ptr<FileNode>> fuseFhMap;
 };
 
 int remountFS(EncFS_Context *ctx);

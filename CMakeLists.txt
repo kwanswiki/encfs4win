@@ -1,18 +1,22 @@
-# 3.1 preferred, but we can often get by with 2.8.
+# 3.0.2 preferred, but we can often get by with 2.8.
 cmake_minimum_required(VERSION 2.8)
+if (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}.${CMAKE_PATCH_VERSION} LESS 3.0.2)
+  message(WARNING "You should use cmake 3.0.2 or newer for configuration to run correctly.")
+endif()
+
 project(EncFS C CXX)
 
 set (ENCFS_MAJOR 1)
 set (ENCFS_MINOR 9)
-set (ENCFS_PATCH 1)
+set (ENCFS_PATCH 2)
 set (ENCFS_VERSION "${ENCFS_MAJOR}.${ENCFS_MINOR}.${ENCFS_PATCH}")
 set (ENCFS_SOVERSION "${ENCFS_MAJOR}.${ENCFS_MINOR}")
 set (ENCFS_NAME "Encrypted Filesystem")
 
-option(IWYU "Build with IWYU analyais." OFF)
+option(IWYU "Build with IWYU analysis." OFF)
 
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
-  "${CMAKE_SOURCE_DIR}/cmake")
+  "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 option (BUILD_SHARED_LIBS "build shared libraries" OFF)
 option (USE_INTERNAL_TINYXML "use built-in TinyXML2" ON)
@@ -31,10 +35,10 @@ if (${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION} GREATER 3.0)
 else ()
   if (CMAKE_COMPILER_IS_GNUCXX)
     message ("** Assuming that GNU CXX uses -std=c++11 flag for C++11 compatibility.")
-    list(APPEND CMAKE_CXX_FLAGS "-std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
   elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     message ("** Assuming that Clang uses -std=c++11 flag for C++11 compatibility.")
-    list(APPEND CMAKE_CXX_FLAGS "-std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
   else()
     message ("** No CMAKE C++11 check. If the build breaks, you're on your own.")
   endif()
@@ -67,7 +71,7 @@ include_directories (${OPENSSL_INCLUDE_DIR})
 if (USE_INTERNAL_TINYXML)
   message("-- Using local TinyXML2 copy")
   add_subdirectory(internal/tinyxml2-3.0.0)
-  include_directories(${CMAKE_SOURCE_DIR}/internal/tinyxml2-3.0.0)
+  include_directories(${CMAKE_CURRENT_LIST_DIR}/internal/tinyxml2-3.0.0)
   link_directories(${CMAKE_BINARY_DIR}/internal/tinyxml2-3.0.0)
   set(TINYXML_LIBRARIES tinyxml2)
 else ()
@@ -83,15 +87,25 @@ check_include_file_cxx (attr/xattr.h HAVE_ATTR_XATTR_H)
 check_include_file_cxx (sys/xattr.h HAVE_SYS_XATTR_H)
 
 # Check if xattr functions take extra arguments, as they do on OSX.
-# Output error is misleading, so do this test quietly.
 include (CheckCXXSourceCompiles)
-set(CMAKE_REQUIRED_QUIET_SAVE ${CMAKE_REQUIRED_QUIET})
-set (CMAKE_REQUIRED_QUIET True)
 check_cxx_source_compiles ("#include <sys/types.h>
   #include <sys/xattr.h>
   int main() { getxattr(0,0,0,0,0,0); return 1; }
   " XATTR_ADD_OPT)
-set (CMAKE_REQUIRED_QUIET ${CMAKE_REQUIRED_QUIET_SAVE})
+
+# Check if xattr function llistxattr exists.
+include (CheckCXXSourceCompiles)
+if (XATTR_ADD_OPT)
+check_cxx_source_compiles ("#include <sys/types.h>
+  #include <sys/xattr.h>
+  int main() { llistxattr(0,0,0,0); return 1; }
+  " XATTR_LLIST)
+else (XATTR_ADD_OPT)
+check_cxx_source_compiles ("#include <sys/types.h>
+  #include <sys/xattr.h>
+  int main() { llistxattr(0,0,0); return 1; }
+  " XATTR_LLIST)
+endif (XATTR_ADD_OPT)
 
 # Check if we have some standard functions.
 include (CheckFuncs)
@@ -120,11 +134,11 @@ set (CPACK_SOURCE_IGNORE_FILES
 include (CPack)
 
 # Compile-time configuration.
-configure_file (${CMAKE_SOURCE_DIR}/config.h.cmake
+configure_file (${CMAKE_CURRENT_LIST_DIR}/config.h.cmake
   ${CMAKE_BINARY_DIR}/config.h)
 
 include_directories (${CMAKE_BINARY_DIR})
-include_directories (${CMAKE_SOURCE_DIR})
+include_directories (${CMAKE_CURRENT_LIST_DIR})
 
 # Translations
 if (ENABLE_NLS)
@@ -140,6 +154,7 @@ if (ENABLE_NLS)
 endif (ENABLE_NLS)
 
 set(SOURCE_FILES
+  internal/easylogging++.cc
   encfs/autosprintf.cpp
   encfs/base64.cpp
   encfs/BlockFileIO.cpp
@@ -216,17 +231,17 @@ target_link_libraries (checkops encfs)
 install (FILES encfs/encfssh DESTINATION bin)
 
 # Reference all headers, to make certain IDEs happy.
-file (GLOB_RECURSE all_headers ${CMAKE_SOURCE_DIR}/*.h)
+file (GLOB_RECURSE all_headers ${CMAKE_CURRENT_LIST_DIR}/*.h)
 add_custom_target (all_placeholder SOURCES ${all_headers})
 
 if (POD2MAN)
   add_custom_target (encfs-man ALL
     COMMAND ${POD2MAN} -u --section=1 --release=${ENCFS_VERSION} --center=${ENCFS_NAME}
-            ${CMAKE_SOURCE_DIR}/encfs/encfs.pod encfs.1)
+            ${CMAKE_CURRENT_LIST_DIR}/encfs/encfs.pod encfs.1)
 
   add_custom_target (encfsctl-man ALL
     COMMAND ${POD2MAN} -u --section=1 --release=${ENCFS_VERSION} --center=${ENCFS_NAME}
-            ${CMAKE_SOURCE_DIR}/encfs/encfsctl.pod encfsctl.1)
+            ${CMAKE_CURRENT_LIST_DIR}/encfs/encfsctl.pod encfsctl.1)
 
   install (FILES ${CMAKE_BINARY_DIR}/encfs.1 ${CMAKE_BINARY_DIR}/encfsctl.1
     DESTINATION share/man/man1)
@@ -234,15 +249,26 @@ endif (POD2MAN)
 
 # Tests
 enable_testing()
+
+if (CMAKE_CONFIGURATION_TYPES)
+    add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND}
+        --force-new-ctest-process --output-on-failure
+        --build-config "$<CONFIGURATION>")
+else()
+    add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND}
+        --force-new-ctest-process --output-on-failure)
+endif()
+
 add_test (NAME checkops
           COMMAND checkops)
 
 find_program (PERL_PROGRAM perl)
 if (PERL_PROGRAM)
   file(GLOB pl_test_files "tests/*.t.pl")
-  #add_test (NAME scriptedtests
-  #          COMMAND ${PERL_PROGRAM} -I ${CMAKE_SOURCE_DIR}
-  #             -MTest::Harness
-  #             -e "$$Test::Harness::verbose=1; runtests @ARGV;"
-  #             ${pl_test_files})
+  add_test (NAME scriptedtests
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            COMMAND ${PERL_PROGRAM}
+               -MTest::Harness
+               -e "$$Test::Harness::verbose=1; runtests @ARGV;"
+               ${pl_test_files})
 endif (PERL_PROGRAM)

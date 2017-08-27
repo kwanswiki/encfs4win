@@ -27,11 +27,16 @@
 #include <stdint.h>
 #include <string>
 #include <sys/types.h>
+#include <atomic>
 
 #include "CipherKey.h"
 #include "FSConfig.h"
 #include "FileUtils.h"
 #include "encfs.h"
+
+#define CANARY_OK 0x46040975
+#define CANARY_RELEASED 0x70c5610d
+#define CANARY_DESTROYED 0x52cdad90
 
 namespace encfs {
 
@@ -42,8 +47,15 @@ class FileIO;
 class FileNode {
  public:
   FileNode(DirNode *parent, const FSConfigPtr &cfg, const char *plaintextName,
-           const char *cipherName);
+           const char *cipherName, uint64_t fuseFh);
   ~FileNode();
+
+  // Use an atomic type. The canary is accessed without holding any
+  // locks.
+  std::atomic<std::uint32_t> canary;
+
+  // FUSE file handle that is passed to the kernel
+  uint64_t fuseFh;
 
   const char *plaintextName() const;
   const char *cipherName() const;
