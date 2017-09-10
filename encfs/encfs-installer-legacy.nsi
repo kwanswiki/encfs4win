@@ -122,7 +122,7 @@ SectionEnd
 
 LangString DESC_SEC01 ${LANG_ENGLISH} "Microsoft Visual C++ Redistributable 2013"
 LangString DESC_SEC02 ${LANG_ENGLISH} "Microsoft Visual C++ Redistributable 2015"
-LangString DESC_SEC03 ${LANG_ENGLISH} "Dokan FUSE tools (v0.7.4)"
+LangString DESC_SEC03 ${LANG_ENGLISH} "Dokan FUSE tools (v0.7.4). NOTE: This is required if Dokan v0.7.4 is not already installed!"
 LangString DESC_SEC04 ${LANG_ENGLISH} "Required encfs binaries"
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
