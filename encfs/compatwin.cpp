@@ -519,6 +519,9 @@ unix::rename(const char *oldpath, const char *newpath)
 {
   VLOG(1) << "NOTIFY -- unix::rename";
 
+  // We need to be able to move system files (e.g., DESKTOP.INI) 
+  bool isSysFile = false;
+
   // back up old attributes 
   DWORD backupAttrs = GetFileAttributesW(utf8_to_wfn(oldpath).c_str());
   if (backupAttrs == INVALID_FILE_ATTRIBUTES) {
@@ -527,14 +530,21 @@ unix::rename(const char *oldpath, const char *newpath)
     return -1;
   }
 
-  // Remove readonly and system attributes (for move) 
-  SetFileAttributesW(utf8_to_wfn(oldpath).c_str(), backupAttrs & 
-                      (~FILE_ATTRIBUTE_READONLY & ~FILE_ATTRIBUTE_SYSTEM & ~FILE_ATTRIBUTE_HIDDEN));
+  if (backupAttrs & FILE_ATTRIBUTE_SYSTEM) {
+    isSysFile = true;
 
-  if (MoveFileExW(utf8_to_wfn(oldpath).c_str(), utf8_to_wfn(newpath).c_str(), MOVEFILE_COPY_ALLOWED)) {
+    // Remove readonly and system attributes (for move) -- fix DESKTOP.INI issues 
+    SetFileAttributesW(utf8_to_wfn(oldpath).c_str(), backupAttrs &
+      (~FILE_ATTRIBUTE_READONLY & ~FILE_ATTRIBUTE_SYSTEM & ~FILE_ATTRIBUTE_HIDDEN));
+  }
 
-    // Put back original attributes
-    SetFileAttributesW(utf8_to_wfn(newpath).c_str(), backupAttrs);
+  if (MoveFileExW(utf8_to_wfn(oldpath).c_str(), utf8_to_wfn(newpath).c_str(), 
+        (MOVEFILE_COPY_ALLOWED & MOVEFILE_WRITE_THROUGH))) {
+    
+    // Put back original attributes (if necessary) 
+    if (isSysFile) {
+      SetFileAttributesW(utf8_to_wfn(newpath).c_str(), backupAttrs);
+    }
 
     return 0;
   }
@@ -542,7 +552,9 @@ unix::rename(const char *oldpath, const char *newpath)
   errno = ERRNO_FROM_WIN32(GetLastError());
 
   // Put back original attributes (failed move) 
-  SetFileAttributesW(utf8_to_wfn(oldpath).c_str(), backupAttrs);
+  if (isSysFile) {
+    SetFileAttributesW(utf8_to_wfn(oldpath).c_str(), backupAttrs);
+  }
 
   return -1;
 }
