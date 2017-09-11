@@ -488,6 +488,7 @@ static bool processArgs(int argc, char *argv[],
   }
 
   // check that the directories exist, or that we can create them..
+  if (out->opts->rootDir.length() > 3)
   if (!isDirectory(out->opts->rootDir.c_str()) &&
       !userAllowMkdir(out->opts->annotate ? 1 : 0, out->opts->rootDir.c_str(),
                       0700)) {
@@ -495,7 +496,7 @@ static bool processArgs(int argc, char *argv[],
     return false;
   }
 
-  if(out->opts->mountPoint.length() > 2)
+  if (out->opts->mountPoint.length() > 3)
   if (!isDirectory(out->opts->mountPoint.c_str()) &&
       !userAllowMkdir(out->opts->annotate ? 2 : 0,
                       out->opts->mountPoint.c_str(), 0700)) {
