@@ -2,7 +2,7 @@
 
 # Test EncFS normal and paranoid mode
 
-use Test::More tests => 86;
+use Test::More tests => 84;
 use File::Path;
 use File::Copy;
 use File::Temp;
@@ -324,9 +324,9 @@ sub cleanup
     ok( ! -d $crypt, "unmount ok, mount point removed");
 
 	sleep(5);
-    system("rmdir /q /s $workingDir");
+    system("rd /q /s $workingDir");
 	sleep(5);
-    system("rmdir /q /s $workingDir");
+    system("rd /q /s $workingDir");
     #ok( ! -d $workingDir, "working dir removed");
 }
 

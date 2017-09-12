@@ -3,7 +3,7 @@
 # Test EncFS --reverse mode
 
 use warnings;
-use Test::More tests => 14;
+use Test::More tests => 12;
 use File::Path;
 use File::Temp;
 use IO::Handle;
@@ -37,9 +37,9 @@ sub cleanup
     portable_unmount($ciphertextMount);
     our $workingDir;
 	sleep(5);
-    system("rmdir /q /s $workingDir");
+    system("rd /q /s $workingDir");
 	sleep(5);
-    system("rmdir /q /s $workingDir");
+    system("rd /q /s $workingDir");
     #ok( ! -d $workingDir, "working dir removed");
 }
 
