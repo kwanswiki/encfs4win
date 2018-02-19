@@ -23,8 +23,8 @@ REM along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 REM versioning variables 
-set VERSION=v9.83
-set VERSION_STR=v9.83
+set VERSION=9.89
+set VERSION_STR=9.89
 set SOURCE_URI=https://github.com/easylogging/easyloggingpp.git
 
 
