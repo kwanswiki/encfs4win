@@ -64,12 +64,12 @@ SectionEnd
 
 Section "VC++ Redist v120" SEC01
   File "..\..\encfs-bin\vc_redist-120_x86.exe"
-  ExecWait "$INSTDIR\vc_redist-120_x86.exe /install /quiet"
+  ExecWait "$INSTDIR\vc_redist-120_x86.exe /install /passive /promptrestart"
 SectionEnd
 
 Section "VC++ Redist v140" SEC02
   File "..\..\encfs-bin\vc_redist-140_x86.exe"
-  ExecWait "$INSTDIR\vc_redist-140_x86.exe /install /quiet"
+  ExecWait "$INSTDIR\vc_redist-140_x86.exe /install /passive /promptrestart"
 SectionEnd
 
 Section "Dokany v0.7.4" SEC03
