@@ -640,22 +640,44 @@ unix::stat(const char *path, struct stat_st *buffer)
     return -1;
   }
 
-
   // We need an active file handle in order to get the file index ID 
   HANDLE hff = CreateFileW(fn.c_str(), GENERIC_READ,
     FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
     NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
-  if (hff == INVALID_HANDLE_VALUE) {
-    errno = ERRNO_FROM_WIN32(GetLastError());
-    return -1;
-  }
-  BY_HANDLE_FILE_INFORMATION wfd;
-  if (!GetFileInformationByHandle(hff, &wfd)) {
-    errno = ERRNO_FROM_WIN32(GetLastError());
-    return -1;
-  }
-  CloseHandle(hff);
 
+  BY_HANDLE_FILE_INFORMATION hfi;
+  WIN32_FIND_DATAW wfd;
+
+  // Not sure about the default values after init, so in doubt...
+  hfi.dwFileAttributes = 0;
+  wfd.dwFileAttributes = 0;
+  hfi.nFileIndexHigh = 0;
+  hfi.nFileIndexLow = 0;
+  hfi.nFileSizeHigh = 0;
+  wfd.nFileSizeHigh = 0;
+  hfi.nFileSizeLow = 0;
+  wfd.nFileSizeLow = 0;
+  FILETIME *ftLastAccessTime = &hfi.ftLastAccessTime;
+  FILETIME *ftLastWriteTime = &hfi.ftLastWriteTime;
+  FILETIME *ftCreationTime = &hfi.ftCreationTime;
+
+  if (hff != INVALID_HANDLE_VALUE && GetFileInformationByHandle(hff, &hfi)) {
+    CloseHandle(hff);
+  }
+  else {
+    ftLastAccessTime = &wfd.ftLastAccessTime;
+    ftLastWriteTime = &wfd.ftLastWriteTime;
+    ftCreationTime = &wfd.ftCreationTime;
+    // https://bugs.ruby-lang.org/issues/6845
+    hff = FindFirstFileW(fn.c_str(), &wfd);
+    if (hff != INVALID_HANDLE_VALUE) {
+      FindClose(hff);
+    }
+    else {
+      errno = ERRNO_FROM_WIN32(GetLastError());
+      return -1;
+    }
+  }
 
   int drive;
   if (path[1] == ':')
@@ -665,31 +687,33 @@ unix::stat(const char *path, struct stat_st *buffer)
 
 
   unsigned mode;
-  if (wfd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+  if ((hfi.dwFileAttributes + wfd.dwFileAttributes) & FILE_ATTRIBUTE_DIRECTORY)
     mode = _S_IFDIR | 0777;
   else
     mode = _S_IFREG | 0666;
   // Set attributes of file/directory
-  if (wfd.dwFileAttributes & FILE_ATTRIBUTE_READONLY)
+  if ((hfi.dwFileAttributes + wfd.dwFileAttributes) & FILE_ATTRIBUTE_READONLY)
     mode &= ~0222;
-
+  // The following solution is not complete, Cygwin does not correctly detect such items as links...
+  // if ((hfi.dwFileAttributes + wfd.dwFileAttributes) & FILE_ATTRIBUTE_REPARSE_POINT)
+  //   mode |= S_IFLNK;
 
   buffer->st_dev = buffer->st_rdev = drive;
-  buffer->st_ino = wfd.nFileIndexHigh * (((uint64_t)1) << 32) + wfd.nFileIndexLow;
+  buffer->st_ino = (hfi.nFileIndexHigh + 0) * (((uint64_t)1) << 32) + (hfi.nFileIndexLow + 0);
   buffer->st_mode = mode;
   buffer->st_nlink = 1;
   buffer->st_uid = 0;
   buffer->st_gid = 0;
-  buffer->st_size = wfd.nFileSizeHigh * (((uint64_t)1) << 32) + wfd.nFileSizeLow;
+  buffer->st_size = (hfi.nFileSizeHigh + wfd.nFileSizeHigh) * (((uint64_t)1) << 32) + (hfi.nFileSizeLow + wfd.nFileSizeLow);
 
 #ifdef USE_LEGACY_DOKAN
-  buffer->st_atime = filetimeToUnixTime(&wfd.ftLastAccessTime);
-  buffer->st_mtime = filetimeToUnixTime(&wfd.ftLastWriteTime);
-  buffer->st_ctime = filetimeToUnixTime(&wfd.ftCreationTime);
+  buffer->st_atime = filetimeToUnixTime(ftLastAccessTime);
+  buffer->st_mtime = filetimeToUnixTime(ftLastWriteTime);
+  buffer->st_ctime = filetimeToUnixTime(ftCreationTime);
 #else
-  buffer->st_atim.tv_sec = filetimeToUnixTime(&wfd.ftLastAccessTime);
-  buffer->st_mtim.tv_sec = filetimeToUnixTime(&wfd.ftLastWriteTime);
-  buffer->st_ctim.tv_sec = filetimeToUnixTime(&wfd.ftCreationTime);
+  buffer->st_atim.tv_sec = filetimeToUnixTime(ftLastAccessTime);
+  buffer->st_mtim.tv_sec = filetimeToUnixTime(ftLastWriteTime);
+  buffer->st_ctim.tv_sec = filetimeToUnixTime(ftCreationTime);
 #endif
 
   return 0;
@@ -756,6 +780,7 @@ struct unix::dirent*
   if (!dir) return NULL;
   errno = 0;
   if (dir->pos < 0) return NULL;
+skip:
   if (dir->pos == 0) {
     ++dir->pos;
   }
@@ -763,6 +788,11 @@ struct unix::dirent*
     errno = GetLastError() == ERROR_NO_MORE_FILES ? 0 : ERRNO_FROM_WIN32(GetLastError());
     return NULL;
   }
+  if (dir->wfd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
+    // let's ignore reparse points / links until we found a solution above to correctly handle them
+    goto skip;
+  }
+  
   std::string path = wchar_to_utf8_cstr(dir->wfd.cFileName);
   strncpy(dir->ent.d_name, path.c_str(), sizeof(dir->ent.d_name));
   dir->ent.d_name[sizeof(dir->ent.d_name) - 1] = 0;
