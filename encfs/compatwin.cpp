@@ -798,11 +798,19 @@ skip:
   dir->ent.d_name[sizeof(dir->ent.d_name) - 1] = 0;
   dir->ent.d_namlen = strlen(dir->ent.d_name);
 
-  // Figure out the inode number for this file 
+  // Figure out the inode number for this file
+  /* Unfortunately this call is useless as path.c_str() is not a full path,
+   * so stat() will fail. In addition, inode number is used by fuse_fill_dir_t filler()
+   * in encfs_readdir() for caching purpose, and unfortunately Dokany does not
+   * provide caching (yet ?) : https://github.com/dokan-dev/dokany/issues/670
+   * WinFSP, a better alternative ? https://github.com/billziss-gh/winfsp/issues/44
+  */
+  /*
   struct stat_st stbuf;
   memset(&stbuf, 0, sizeof(struct stat_st));
   unix::stat(path.c_str(), &stbuf);
   dir->ent.d_ino = stbuf.st_ino;
+  */
 
   return &dir->ent;
 }
