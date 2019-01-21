@@ -86,14 +86,14 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // Dialog
 //
 
-103 DIALOGEX 22, 17, 205, 55
+103 DIALOGEX 22, 17, 291, 55
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_CAPTION | WS_SYSMENU
 CAPTION "About"
 FONT 8, "MS Shell Dlg", 0, 0, 0x0
 BEGIN
-    ICON            108,105,14,13,11,10
-    LTEXT           "EncFS GUI by Frediano Ziglio",-1,49,11,112,9,SS_NOPREFIX
-    DEFPUSHBUTTON   "OK",IDOK,169,6,31,14,WS_GROUP
+    ICON            108,105,14,13,21,20
+    DEFPUSHBUTTON   "OK",IDOK,253,4,31,14,WS_GROUP
+    EDITTEXT        IDC_ABOUTTEXT,41,7,208,41,ES_MULTILINE | ES_AUTOHSCROLL | ES_READONLY | NOT WS_BORDER
 END
 
 111 DIALOGEX 0, 0, 191, 114
@@ -126,6 +126,7 @@ GUIDELINES DESIGNINFO
 BEGIN
     103, DIALOG
     BEGIN
+        RIGHTMARGIN, 290
     END
 
     111, DIALOG
@@ -168,6 +169,17 @@ BEGIN
 END
 
 #endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+103 AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
 
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////

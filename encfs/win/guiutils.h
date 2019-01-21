@@ -23,6 +23,7 @@
 #define IDC_CHKSTARTUP                          1011
 #define IDC_PASSWORD                            1011
 #define IDC_CHKOPEN                             1012
+#define IDC_ABOUTTEXT							1013
 
 
 extern HINSTANCE hFuseDllInstance;
