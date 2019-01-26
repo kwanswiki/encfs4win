@@ -1,24 +1,36 @@
 ; encfs4win installer 
- 
- 
+
+
 ; HM NIS Edit Wizard helper defines
 !define PRODUCT_NAME "encfs4win"
-!define PRODUCT_VERSION "1.10.1-RC14"
 !define PRODUCT_PUBLISHER "CEMi4"
 !define HELPURL "https://github.com/jetwhiz/encfs4win"
 !define ABOUTURL "https://encfs.win"
- 
+
+; Additional defines that can be given via cmd line
+!ifndef PRODUCT_VERSION
+  !define PRODUCT_VERSION "1.10.1-RC14"
+!endif
+
+!ifndef DOKAN_VERSION
+  !define DOKAN_VERSION "1.2.1.2000"
+!endif
+
+!ifndef DEP_DIR
+  !define DEP_DIR "..\..\encfs-bin"
+!endif
+
+
+
 SetCompressor lzma
- 
- 
- 
+
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
- 
+
 ; MUI Settings
 !define MUI_ABORTWARNING
-!define MUI_ICON "..\..\encfs-bin\encfs4win.ico"
- 
+!define MUI_ICON "${DEP_DIR}\encfs4win.ico"
+
 ; Welcome page
 !insertmacro MUI_PAGE_WELCOME
 ; Components page
@@ -27,7 +39,7 @@ SetCompressor lzma
 !insertmacro MUI_PAGE_INSTFILES
 ; Finish page
 !insertmacro MUI_PAGE_FINISH
- 
+
 ; Language files
 !insertmacro MUI_LANGUAGE "English"
 
@@ -36,7 +48,7 @@ SetCompressor lzma
 ; Product details 
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "..\..\encfs-bin\encfs-installer.exe"
+OutFile "${DEP_DIR}\encfs-installer.exe"
 InstallDir "$PROGRAMFILES\encfs"
 ShowInstDetails show
 
@@ -63,18 +75,18 @@ Section -SETTINGS
 SectionEnd
 
 Section "VC++ Redist v120" SEC01
-  File "..\..\encfs-bin\vc_redist-120_x86.exe"
+  File "${DEP_DIR}\vc_redist-120_x86.exe"
   ExecWait "$INSTDIR\vc_redist-120_x86.exe /install /passive /promptrestart"
 SectionEnd
 
 Section "VC++ Redist v140" SEC02
-  File "..\..\encfs-bin\vc_redist-140_x86.exe"
+  File "${DEP_DIR}\vc_redist-140_x86.exe"
   ExecWait "$INSTDIR\vc_redist-140_x86.exe /install /passive /promptrestart"
 SectionEnd
 
-Section "Dokany v1.2" SEC03
-  File "..\..\encfs-bin\DokanSetup_redist-1.2.1.2000.exe"
-  ExecWait "$INSTDIR\DokanSetup_redist-1.2.1.2000.exe /install /passive /norestart"
+Section "Dokany" SEC03
+  File "${DEP_DIR}\DokanSetup_redist-${DOKAN_VERSION}.exe"
+  ExecWait "$INSTDIR\DokanSetup_redist-${DOKAN_VERSION}.exe /install /passive /norestart"
 SectionEnd
 
 Section "encfs" SEC04
@@ -117,12 +129,12 @@ Section "encfs" SEC04
   # Cleanup
   Delete $INSTDIR\vc_redist-120_x86.exe
   Delete $INSTDIR\vc_redist-140_x86.exe
-  Delete $INSTDIR\DokanSetup_redist-1.2.1.2000.exe
+  Delete $INSTDIR\DokanSetup_redist-${DOKAN_VERSION}.exe
 SectionEnd
 
 LangString DESC_SEC01 ${LANG_ENGLISH} "Microsoft Visual C++ Redistributable 2013"
 LangString DESC_SEC02 ${LANG_ENGLISH} "Microsoft Visual C++ Redistributable 2015"
-LangString DESC_SEC03 ${LANG_ENGLISH} "Dokany FUSE tools (v1.2). NOTE: This is required if Dokany v1 is not already installed!"
+LangString DESC_SEC03 ${LANG_ENGLISH} "Dokany FUSE tools. NOTE: This is required if Dokany is not already installed!"
 LangString DESC_SEC04 ${LANG_ENGLISH} "Required encfs binaries"
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
