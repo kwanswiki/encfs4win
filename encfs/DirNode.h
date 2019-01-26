@@ -49,7 +49,7 @@ struct RenameEl;
 class DirTraverse {
  public:
   DirTraverse(const std::shared_ptr<unix::DIR> &dirPtr, uint64_t iv,
-              const std::shared_ptr<NameIO> &naming);
+              const std::shared_ptr<NameIO> &naming, bool root);
   DirTraverse(const DirTraverse &src);
   ~DirTraverse();
 
@@ -75,6 +75,7 @@ class DirTraverse {
   // more efficient to support filename IV chaining..
   uint64_t iv;
   std::shared_ptr<NameIO> naming;
+  bool root;
 };
 inline bool DirTraverse::valid() const { return dir.get() != 0; }
 
