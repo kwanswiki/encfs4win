@@ -2,7 +2,7 @@
 
 # Test EncFS normal and paranoid mode
 
-use Test::More tests => 84;
+use Test::More tests => 88;
 use File::Path;
 use File::Copy;
 use File::Temp;
@@ -12,6 +12,13 @@ require("integration/common.pl");
 
 my $tempDir = $ENV{'TMPDIR'} || $ENV{'TEMP'};
 
+# Find attr binary
+# Windows
+my $setattr = "0";
+my $getattr = "0";
+
+# Do we support xattr ?
+my $have_xattr = 0;
 
 # test filesystem in standard config mode
 &runTests('standard');
@@ -281,7 +288,7 @@ sub checkContents
 sub encName
 {
     my $plain = shift;
-    my $enc = qx(.\\encfs\\Release\\encfsctl.exe encode --extpass="tests\\retpass.bat" $raw $plain);
+    my $enc = qx(.\\encfs\\Release\\encfsctl.exe encode --extpass="integration\\retpass.bat" $raw $plain);
     chomp($enc);
     return $enc;
 }
@@ -313,12 +320,12 @@ sub links
     };
 
     # extended attributes
-    my $return_code = ($have_xattr) ? system("$setattr $crypt/data") : 0;
+    my $return_code = ($have_xattr) ? system("$setattr $crypt\\data") : 0;
     is($return_code, 0, "extended attributes can be set (return code was $return_code)");
-    $return_code = ($have_xattr) ? system("$getattr $crypt/data") : 0;
+    $return_code = ($have_xattr) ? system("$getattr $crypt\\data") : 0;
     is($return_code, 0, "extended attributes can be get (return code was $return_code)");
     # this is suppused to fail, so get rid of the error message
-    $return_code = ($have_xattr) ? system("$getattr $crypt/data-rel 2> /dev/null") : 1;
+    $return_code = ($have_xattr) ? system("$getattr $crypt\\data-rel 2> NUL") : 1;
     isnt($return_code, 0, "extended attributes operations do not follow symlinks (return code was $return_code)");
 }
 
@@ -343,7 +350,7 @@ sub mount
 sub remount
 {
     my $args = shift;
-    my $cmdline = ".\\encfs\\Release\\encfs.exe --extpass=\"tests\\retpass.bat\" $args $raw $crypt 2>&1";
+    my $cmdline = ".\\encfs\\Release\\encfs.exe --extpass=\"integration\\retpass.bat\" $args $raw $crypt 2>&1";
     #                                          This makes sure we get to see stderr ^
     system($cmdline);
 }
@@ -405,7 +412,7 @@ sub create_unmount_remount
         mkdir($mnt)  || BAIL_OUT($!);
     }
 
-    system(".\\encfs\\Release\\encfs.exe --standard --extpass=\"tests\\retpass.bat\" $crypt $mnt 2>&1");
+    system(".\\encfs\\Release\\encfs.exe --standard --extpass=\"integration\\retpass.bat\" $crypt $mnt 2>&1");
     ok( $? == 0, "encfs command returns 0") || return;
     ok( -f "$crypt\\.encfs6.xml",  "created control file") || return;
 
@@ -420,7 +427,7 @@ sub create_unmount_remount
 
     # Mount again, testing -c at the same time
     rename("$crypt\\.encfs6.xml", "$crypt/.encfs6_moved.xml");
-    system(".\\encfs\\Release\\encfs.exe -c \"$crypt\\.encfs6_moved.xml\" --extpass=\"tests\\retpass.bat\" $crypt $mnt 2>&1");
+    system(".\\encfs\\Release\\encfs.exe -c \"$crypt\\.encfs6_moved.xml\" --extpass=\"integration\\retpass.bat\" $crypt $mnt 2>&1");
     ok( $? == 0, "encfs command returns 0") || return;
 
     # Check if content is still there
