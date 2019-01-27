@@ -142,6 +142,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\deps\easyloggingpp\src\easylogging++.cc" />
     <ClCompile Include="autosprintf.cpp" />
     <ClCompile Include="base64.cpp" />
     <ClCompile Include="BlockFileIO.cpp" />

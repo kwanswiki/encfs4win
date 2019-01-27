@@ -15,6 +15,8 @@
  * more details.
  */
 
+#define NOMINMAX
+
 #include "encfs.h"
 
 #include <cerrno>

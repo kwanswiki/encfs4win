@@ -652,7 +652,6 @@ int main(int argc, char *argv[]) {
   }
 
   encfs::initLogging(encfsArgs->isVerbose, encfsArgs->isDaemon);
-  ELPP_INITIALIZE_SYSLOG(encfsArgs->syslogTag.c_str(), LOG_PID, LOG_USER);
 
   // fork encfs if we want a daemon (only if not already forked) 
   if (encfsArgs->isDaemon && !encfsArgs->isFork) {
@@ -976,27 +975,6 @@ static void *idleMonitor(void *_arg) {
   return nullptr;
 }
 
-static bool unmountFS(EncFS_Context *ctx) {
-  std::shared_ptr<EncFS_Args> arg = ctx->args;
-  if (arg->opts->mountOnDemand) {
-    VLOG(1) << "Detaching filesystem: "
-            << arg->opts->mountPoint;
-
-    ctx->setRoot(std::shared_ptr<DirNode>());
-    return false;
-  } else {
-    // Time to unmount!
-#if FUSE_USE_VERSION < 30
-    fuse_unmount(arg->opts->mountPoint.c_str(), NULL);
-#else
-    fuse_unmount(fuse_get_context()->fuse);
-#endif
-    // fuse_unmount succeeds and returns void
-    RLOG(INFO) << "Filesystem inactive, unmounted: " << arg->opts->mountPoint;
-    return true;
-  }
-}
-
 #ifdef WIN32
 // This function will be called when ctrl-c (SIGINT) signal is sent 
 BOOL WINAPI signal_callback_handler(DWORD dwType)
@@ -1009,30 +987,28 @@ BOOL WINAPI signal_callback_handler(DWORD dwType)
   }
   
   // Unmount only if mounted 
-  if (saved_ctx->isMounted()) {
-    switch (dwType) {
-    case CTRL_C_EVENT:
-    case CTRL_BREAK_EVENT:
-    case CTRL_CLOSE_EVENT:
-    case CTRL_LOGOFF_EVENT:
-    case CTRL_SHUTDOWN_EVENT:
+  switch (dwType) {
+  case CTRL_C_EVENT:
+  case CTRL_BREAK_EVENT:
+  case CTRL_CLOSE_EVENT:
+  case CTRL_LOGOFF_EVENT:
+  case CTRL_SHUTDOWN_EVENT:
 
-      pthread_mutex_lock(&saved_ctx->wakeupMutex);
+  pthread_mutex_lock(&saved_ctx->wakeupMutex);
 
-      // cleanly unmount FS 
-      VLOG(1) << "ConsoleHandler: Unmounting filesystem";
-      if (unmountFS(saved_ctx.get())) {
-        // wait for main thread to wake us up
-        pthread_cond_wait(&saved_ctx->wakeupCond, &saved_ctx->wakeupMutex);
-      }
+  // cleanly unmount FS 
+  VLOG(1) << "ConsoleHandler: Unmounting filesystem";
+  if (unmountFS(saved_ctx.get())) {
+    // wait for main thread to wake us up
+    pthread_cond_wait(&saved_ctx->wakeupCond, &saved_ctx->wakeupMutex);
+  }
 
-      pthread_mutex_unlock(&saved_ctx->wakeupMutex);
+  pthread_mutex_unlock(&saved_ctx->wakeupMutex);
 
-      break;
-    default:
-      RLOG(ERROR) << "ConsoleHandler: Unrecognized signal caught";
-      return FALSE;
-    }
+  break;
+  default:
+    RLOG(ERROR) << "ConsoleHandler: Unrecognized signal caught";
+    return FALSE;
   }
 
 

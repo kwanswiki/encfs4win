@@ -60,11 +60,11 @@ static void freeBlock(BlockList *el) {
   delete el;
 }
 
-static pthread_mutex_t gMPoolMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t gMPoolMutex;
 static BlockList *gMemPool = nullptr;
 
 void init_mpool_mutex() {
-  pthread_mutex_init(&gMPoolMutex, 0);
+  pthread_mutex_init(&gMPoolMutex, nullptr);
 }
 
 MemBlock MemoryPool::allocate(int size) {

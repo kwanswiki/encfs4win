@@ -202,6 +202,7 @@ int FileNode::mknod(mode_t mode, dev_t rdev, uid_t uid, gid_t gid) {
     res = -eno;
   }
 
+#if 0
   if (olduid >= 0) {
     if(setfsuid(olduid) == -1) {
       int eno = errno;
@@ -216,6 +217,7 @@ int FileNode::mknod(mode_t mode, dev_t rdev, uid_t uid, gid_t gid) {
       // does not return error here as initial setfsgid worked
     }
   }
+#endif
 
   return res;
 }

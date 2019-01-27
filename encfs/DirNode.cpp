@@ -379,9 +379,9 @@ DirTraverse DirNode::openDir(const char *plaintextPath) {
   if (dir == nullptr) {
     int eno = errno;
     VLOG(1) << "opendir error " << strerror(eno);
-    return DirTraverse(shared_ptr<DIR>(), 0, std::shared_ptr<NameIO>(), false);
+    return DirTraverse(shared_ptr<unix::DIR>(), 0, std::shared_ptr<NameIO>(), false);
   }
-  std::shared_ptr<DIR> dp(dir, DirDeleter());
+  std::shared_ptr<unix::DIR> dp(dir, DirDeleter());
 
   uint64_t iv = 0;
   // if we're using chained IV mode, then compute the IV at this
@@ -393,7 +393,7 @@ DirTraverse DirNode::openDir(const char *plaintextPath) {
   } catch (encfs::Error &err) {
     RLOG(ERROR) << "encode err: " << err.what();
   }
-  return DirTraverse(dp, iv, naming, (strlen(plaintextPath) == 1);
+  return DirTraverse(dp, iv, naming, (strlen(plaintextPath) == 1));
 }
 
 bool DirNode::genRenameList(list<RenameEl> &renameList, const char *fromP,
@@ -554,6 +554,7 @@ int DirNode::mkdir(const char *plaintextPath, mode_t mode, uid_t uid,
     res = -eno;
   }
 
+#if 0
   if (olduid >= 0) {
     if(setfsuid(olduid) == -1) {
       int eno = errno;
@@ -568,6 +569,7 @@ int DirNode::mkdir(const char *plaintextPath, mode_t mode, uid_t uid,
       // does not return error here as initial setfsgid worked
     }
   }
+#endif
 
   return res;
 }

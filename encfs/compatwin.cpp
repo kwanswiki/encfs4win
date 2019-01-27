@@ -14,7 +14,7 @@
 
 time_t filetimeToUnixTime(const FILETIME *ft);
 
-void pthread_mutex_init(pthread_mutex_t *mtx, int)
+void pthread_mutex_init(pthread_mutex_t *mtx, std::nullptr_t)
 {
   InitializeCriticalSection(mtx);
 }
@@ -34,7 +34,7 @@ void pthread_mutex_unlock(pthread_mutex_t *mtx)
   LeaveCriticalSection(mtx);
 }
 
-int pthread_create(pthread_t *thread, int, void *(*start_routine)(void*), void *arg)
+int pthread_create(pthread_t *thread, std::nullptr_t, void *(*start_routine)(void*), void *arg)
 {
   errno = 0;
   DWORD dwId;
@@ -45,7 +45,7 @@ int pthread_create(pthread_t *thread, int, void *(*start_routine)(void*), void *
   return 0;
 }
 
-void pthread_join(pthread_t thread, int)
+void pthread_join(pthread_t thread, std::nullptr_t)
 {
   WaitForSingleObject(thread, INFINITE);
 }
@@ -226,7 +226,7 @@ int unix::truncate(const char *path, __int64 length)
 }
 
 int
-pthread_cond_init(pthread_cond_t *cv, int)
+pthread_cond_init(pthread_cond_t *cv, std::nullptr_t)
 {
   cv->waiters_count_ = 0;
   cv->wait_generation_count_ = 0;

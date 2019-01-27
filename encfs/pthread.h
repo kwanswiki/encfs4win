@@ -33,13 +33,13 @@ extern "C" int win32_error_to_errno(int win_res);
 typedef HANDLE pthread_t;
 typedef CRITICAL_SECTION pthread_mutex_t;
 
-void pthread_mutex_init(pthread_mutex_t *mtx, int );
+void pthread_mutex_init(pthread_mutex_t *mtx, std::nullptr_t);
 void pthread_mutex_destroy(pthread_mutex_t *mtx);
 void pthread_mutex_lock(pthread_mutex_t *mtx);
 void pthread_mutex_unlock(pthread_mutex_t *mtx);
 
-int pthread_create(pthread_t *thread, int, void *(*start_routine)(void*), void *arg);
-void pthread_join(pthread_t thread, int);
+int pthread_create(pthread_t *thread, std::nullptr_t, void *(*start_routine)(void*), void *arg);
+void pthread_join(pthread_t thread, std::nullptr_t);
 
 int my_open(const char *fn, int flags);
 
@@ -118,7 +118,7 @@ typedef struct
   // threads. 
 } pthread_cond_t;
 
-int pthread_cond_init (pthread_cond_t *cv, int);
+int pthread_cond_init (pthread_cond_t *cv, std::nullptr_t);
 int pthread_cond_destroy(pthread_cond_t *cv);
 int pthread_cond_wait (pthread_cond_t *cv,
 	pthread_mutex_t *external_mutex);

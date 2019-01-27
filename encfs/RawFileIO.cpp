@@ -294,6 +294,7 @@ int RawFileIO::truncate(FUSE_OFF_T size) {
     knownSize = true;
   }
 
+#if 0
   if (fd >= 0 && canWrite) {
 #if defined(HAVE_FDATASYNC)
     ::fdatasync(fd);
@@ -301,6 +302,7 @@ int RawFileIO::truncate(FUSE_OFF_T size) {
     ::fsync(fd);
 #endif
   }
+#endif
 
   return res;
 }
