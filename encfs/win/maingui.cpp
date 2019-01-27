@@ -350,7 +350,7 @@ static void createConfig(const std::string& rootDir, bool paranoid, const char* 
     throw truntime_error(_T("Failure generating new volume key! ")
       _T("Please report this error."));
 
-  if (!saveConfig(Config_V6, rootDir, config.get()))
+  if (!saveConfig(Config_V6, rootDir, config.get(), ""))
     throw truntime_error(_T("Error saving configuration file"));
 }
 
@@ -441,7 +441,7 @@ OpenOrCreate(HWND hwnd)
 
   // if directory is already configured add and try to mount
   std::shared_ptr<EncFSConfig> config(new EncFSConfig);
-  if (readConfig(slashTerminate(wchar_to_utf8_cstr(dir.c_str())), config.get()) != Config_None) {
+  if (readConfig(slashTerminate(wchar_to_utf8_cstr(dir.c_str())), config.get(), "") != Config_None) {
     char drive = SelectFreeDrive(hwnd);
     if (drive) {
       Drives::drive_t dr(Drives::Add(dir, drive));

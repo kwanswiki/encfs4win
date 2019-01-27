@@ -222,12 +222,12 @@ static string slashTerminate(const string &src) {
   return result;
 }
 
-static char *unslashTerminate(char *src)
-{
-	size_t l = strlen(src);
-	if (l > 1 && (src[l - 1] == '\\' || src[l - 1] == '/'))
-		src[l - 1] = 0;
-	return src;
+static string unslashTerminate(const string &src) {
+  string result = src;
+  size_t l = result.length();
+  if (l > 1 && (result[l - 1] == '\\' || result[l - 1] == '/'))
+    result[l - 1] = 0;
+  return result;
 }
 
 static bool processArgs(int argc, char *argv[],
