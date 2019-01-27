@@ -46,7 +46,7 @@ static void SetPath()
   SetCurrentDirectory(path);
 }
 
-#define DOKAN_VERSION           600
+ULONG dokanVersion = 0;
 
 static bool CheckDokan()
 {
@@ -64,6 +64,7 @@ static bool CheckDokan()
   ResolvedDokanVersion = (DokanVersionType)GetProcAddress(dll, "DokanVersion");
   if (!ResolvedDokanVersion)
     res = false;
+  dokanVersion = ResolvedDokanVersion();
 
   if (!GetProcAddress(dll, "DokanMain") || !GetProcAddress(dll, "DokanUnmount"))
     res = false;
@@ -638,8 +639,15 @@ MainDlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 static INT_PTR CALLBACK
 AboutDlgProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM /* lParam*/)
 {
+  std::wstring someText = L"EncFS GUI\r\n\r\nEncFS v" VERSION L"\r\nBuilt for Dokany v" +
+                          std::to_wstring(DOKAN_VERSION) +
+						  L" (v" +
+                          std::to_wstring(dokanVersion) +
+                          L" loaded)"
+                          L"\r\nhttps://github.com/jetwhiz/encfs4win";
   switch (message) {
   case WM_INITDIALOG:
+    SetDlgItemText(hDlg, IDC_ABOUTTEXT, someText.c_str());
     return TRUE;
   case WM_COMMAND:
     if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL) {

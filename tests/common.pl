@@ -1,13 +1,13 @@
 # Portable FUSE unmount
 # works on Linux AND OSX
 sub portable_unmount {
-    my $crypt = shift;
-    my $fusermount = qx(which fusermount);
+    my $crypt = substr(shift, 0, 1);
+    my $fusermount = "deps\\dokan\\Win32\\Release\\dokanctl.exe";
     chomp($fusermount);
     if(-f $fusermount) {
-        qx($fusermount -u "$crypt");
+        qx($fusermount /u "$crypt");
     } else {
-        qx(umount "$crypt");
+        #TODO: qx(umount "$crypt");
     }
 }
 
@@ -92,6 +92,7 @@ sub writeZeroes
         my $filename = shift;
         my $size = shift;
         open(my $fh, ">", $filename);
+		$fh->autoflush;
         my $bs = 4096; # 4 KiB
         my $block = "\0" x $bs;
         my $remain;
