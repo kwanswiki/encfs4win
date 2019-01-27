@@ -89,7 +89,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <TargetMachine>MachineX86</TargetMachine>
-      <AdditionalDependencies>$(DOKAN_ROOT)\Win32\Release\dokan1.lib;$(DOKAN_ROOT)\Win32\Release\dokanfuse1.lib;$(DOKAN_ROOT)\dokan_fuse\Win32\Release\*.obj;$(OPENSSL_ROOT)\lib\libeay32.lib;$(OPENSSL_ROOT)\lib\ssleay32.lib;..\deps\tinyxml2\tinyxml2\bin\Win32-Release-Lib\tinyxml2.lib;Release\encfs\*.obj;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(DOKAN_ROOT)\Win32\Release\dokan1.lib;$(DOKAN_ROOT)\Win32\Release\dokanfuse1.lib;$(DOKAN_ROOT)\dokan_fuse\Win32\Release\*.obj;$(OPENSSL_ROOT)\lib\libeay32.lib;$(OPENSSL_ROOT)\lib\ssleay32.lib;..\deps\tinyxml2\tinyxml2\Release-Lib\tinyxml2.lib;Release\encfs\*.obj;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

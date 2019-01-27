@@ -23,8 +23,8 @@ REM along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 REM versioning variables 
-set VERSION=3.0.0
-set VERSION_STR=3.0.0
+set VERSION=7.0.1
+set VERSION_STR=7.0.1
 set SOURCE_URI=https://github.com/leethomason/tinyxml2.git
 
 
@@ -40,7 +40,7 @@ set INSTALL_DIR=%CD%\deps\%SRC_DIR_NAME%\
 
 REM don't bother if they already have an installation
 if defined INSTALL_DIR (
-  if exist "%INSTALL_DIR%\tinyxml2\bin\Win32-Release-Lib\tinyxml2.lib" (
+  if exist "%INSTALL_DIR%\tinyxml2\Release-Lib\tinyxml2.lib" (
     if exist "%INSTALL_DIR%\tinyxml2.h" (goto :already_installed)
   )
 )
@@ -62,7 +62,7 @@ pushd deps
 REM Clone git repository and switch to VERSION release 
 echo.
 echo ==================================================
-echo        CLONING TINYXML2 REPOSITORY (%VERSION%)            
+echo      CLONING TINYXML2 REPOSITORY (%VERSION_STR%)
 echo ==================================================
 git clone %SOURCE_URI% %SRC_DIR_NAME% > %SRC_DIR_NAME%-clone.log
 pushd %SRC_DIR_NAME%
@@ -82,10 +82,10 @@ echo ==================================================
 echo             BUILDING TINYXML2 LIBRARIES             
 echo ==================================================
 
-msbuild tinyxml2/tinyxml2.sln /p:PlatformToolset=v140 /p:Configuration=Release-Lib /p:Platform=Win32 /t:Clean,Build
+msbuild tinyxml2/tinyxml2.sln /p:WindowsTargetPlatformVersion=8.1 /p:PlatformToolset=v140 /p:Configuration=Release-Lib /p:Platform=Win32 /t:Clean,Build
 
 REM verify necessary libraries were successfully built 
-if NOT exist "%INSTALL_DIR%\tinyxml2\bin\Win32-Release-Lib\tinyxml2.lib" goto :build_failure
+if NOT exist "%INSTALL_DIR%\tinyxml2\Release-Lib\tinyxml2.lib" goto :build_failure
 if NOT exist "%INSTALL_DIR%\tinyxml2.h" goto :build_failure
 
 

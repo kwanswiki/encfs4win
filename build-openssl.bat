@@ -23,8 +23,8 @@ REM along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 REM versioning variables 
-set VERSION=1.0.2q
-set VERSION_STR=1_0_2q
+set VERSION=1_0_2q
+set VERSION_STR=1.0.2q
 set SOURCE_URI=https://github.com/openssl/openssl.git
 
 
@@ -64,13 +64,13 @@ pushd deps
 REM Clone git repository and switch to VERSION release 
 echo.
 echo ==================================================
-echo            CLONING OPENSSL REPOSITORY (%VERSION%)             
+echo        CLONING OPENSSL REPOSITORY (%VERSION_STR%)
 echo ==================================================
 git clone %SOURCE_URI% %SRC_DIR_NAME% > %SRC_DIR_NAME%-clone.log
 pushd %SRC_DIR_NAME%
 git clean -ffdx
-git reset --hard OpenSSL_%VERSION_STR%
-git checkout OpenSSL_%VERSION_STR%
+git reset --hard OpenSSL_%VERSION%
+git checkout OpenSSL_%VERSION%
 
 REM build libraries (no assembly) 
 echo.

@@ -71,7 +71,7 @@ pushd deps
 REM Clone git repository and switch to VERSION release 
 echo.
 echo ==================================================
-echo             CLONING DOKANY REPOSITORY (%VERSION%)            
+echo         CLONING DOKANY REPOSITORY (%VERSION_STR%)
 echo ==================================================
 git clone %SOURCE_URI% %SRC_DIR_NAME% > %SRC_DIR_NAME%-clone.log
 pushd %SRC_DIR_NAME%

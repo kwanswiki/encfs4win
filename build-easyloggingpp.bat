@@ -23,8 +23,8 @@ REM along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 REM versioning variables 
-set VERSION=9.89
-set VERSION_STR=9.89
+set VERSION=v9.96.7
+set VERSION_STR=v9.96.7
 set SOURCE_URI=https://github.com/easylogging/easyloggingpp.git
 
 
@@ -60,7 +60,7 @@ pushd deps
 REM Clone git repository and switch to VERSION release 
 echo.
 echo ==================================================
-echo    CLONING EASYLOGGINGPP REPOSITORY (%VERSION%)            
+echo    CLONING EASYLOGGINGPP REPOSITORY (%VERSION_STR%)
 echo ==================================================
 git clone %SOURCE_URI% %SRC_DIR_NAME% > %SRC_DIR_NAME%-clone.log
 pushd %SRC_DIR_NAME%

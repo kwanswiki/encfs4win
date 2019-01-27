@@ -7,7 +7,7 @@ Subject: Do not send logs to output file (easyloggingpp)
 diff --git a/src/easylogging++.h b/src/easylogging++.h
 --- a/src/easylogging++.h
 +++ b/src/easylogging++.h
-@@ -342,7 +342,10 @@ ELPP_INTERNAL_DEBUGGING_OUT_INFO << ELPP_INTERNAL_DEBUGGING_MSG(internalInfoStre
+@@ -372,7 +372,10 @@ ELPP_INTERNAL_DEBUGGING_OUT_INFO << ELPP_INTERNAL_DEBUGGING_MSG(internalInfoStre
  #   include <sys/time.h>
  #elif ELPP_OS_WINDOWS
  #   include <direct.h>
@@ -18,12 +18,3 @@ diff --git a/src/easylogging++.h b/src/easylogging++.h
  #  if defined(WIN32_LEAN_AND_MEAN)
  #      if defined(ELPP_WINSOCK2)
  #         include <winsock2.h>
-@@ -825,7 +828,7 @@ static const char* kDefaultLogFile                         =      "logs/myeasylo
- static const char* kDefaultLogFile                         =      "logs/myeasylog.log";
- #      endif  // ELPP_OS_ANDROID
- #  elif ELPP_OS_WINDOWS
--static const char* kDefaultLogFile                         =      "logs\\myeasylog.log";
-+static const char* kDefaultLogFile                         =      "NUL";
- #  endif  // ELPP_OS_UNIX
- #endif  // defined(ELPP_DEFAULT_LOG_FILE)
- #if !defined(ELPP_DISABLE_LOG_FILE_FROM_ARG)
