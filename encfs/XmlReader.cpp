@@ -18,6 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define NOMINMAX
+
 #include "XmlReader.h"
 
 #include <algorithm>  // for remove_if
@@ -27,7 +29,7 @@
 #include <memory>     // for shared_ptr
 #include <sstream>    // for ostringstream
 
-#include <tinyxml2.h>  // for XMLElement, XMLNode, XMLDocument (ptr only)
+#include "tinyxml2.h"  // for XMLElement, XMLNode, XMLDocument (ptr only)
 
 #include "Error.h"
 #include "Interface.h"

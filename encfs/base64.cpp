@@ -45,7 +45,7 @@ void changeBase2(unsigned char *src, int srcLen, int src2Pow,
     workBits += src2Pow;
 
     while (workBits >= dst2Pow) {
-      *dst++ = work & mask;
+      *dst++ = (unsigned char)work & mask;
       work >>= dst2Pow;
       workBits -= dst2Pow;
     }
@@ -82,7 +82,7 @@ static void changeBase2Inline(unsigned char *src, int srcLen, int src2Pow,
   }
 
   // we have at least one value that can be output
-  unsigned char outVal = work & mask;
+  unsigned char outVal = (unsigned char) work & mask;
   work >>= dst2Pow;
   workBits -= dst2Pow;
 
@@ -98,7 +98,7 @@ static void changeBase2Inline(unsigned char *src, int srcLen, int src2Pow,
     // we could have a partial value left in the work buffer..
     if (outputPartialLastByte) {
       while (workBits > 0) {
-        *outLoc++ = work & mask;
+		  *outLoc++ = (unsigned char) work & mask;
         work >>= dst2Pow;
         workBits -= dst2Pow;
       }

@@ -22,7 +22,7 @@
 #include <memory>
 #include <stdlib.h>
 #include <string>
-#include <unistd.h>
+#include "unistd.h"
 
 #include "Cipher.h"
 #include "CipherKey.h"

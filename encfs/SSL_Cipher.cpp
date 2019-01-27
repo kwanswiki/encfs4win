@@ -26,10 +26,10 @@
 #include <openssl/hmac.h>
 #include <openssl/ossl_typ.h>
 #include <openssl/rand.h>
-#include <pthread.h>
+#include "pthread.h"
 #include <string>
-#include <sys/mman.h>
-#include <sys/time.h>
+//#include <sys/mman.h>
+#include "sys/time.h"
 
 #include "Cipher.h"
 #include "Error.h"
@@ -406,7 +406,7 @@ SSL_Cipher::SSL_Cipher(const Interface &iface_, const Interface &realIface_,
 
 SSL_Cipher::~SSL_Cipher() = default;
 
-Interface SSL_Cipher::interface() const { return realIface; }
+Interface SSL_Cipher::getInterface() const { return realIface; }
 
 /**
     create a key from the password.
@@ -484,7 +484,7 @@ CipherKey SSL_Cipher::newKey(const char *password, int passwdLength) {
 CipherKey SSL_Cipher::newRandomKey() {
   const int bufLen = MAX_KEYLENGTH;
   unsigned char tmpBuf[bufLen];
-  int saltLen = 20;
+  const int saltLen = 20;
   unsigned char saltBuf[saltLen];
 
   if (!randomize(tmpBuf, bufLen, true) || !randomize(saltBuf, saltLen, true)) {

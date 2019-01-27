@@ -40,7 +40,7 @@ class StreamNameIO : public NameIO {
                CipherKey key);
   virtual ~StreamNameIO();
 
-  virtual Interface interface() const;
+  virtual Interface getInterface() const;
 
   virtual int maxEncodedNameLen(int plaintextNameLen) const;
   virtual int maxDecodedNameLen(int encodedNameLen) const;

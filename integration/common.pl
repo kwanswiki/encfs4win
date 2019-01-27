@@ -2,7 +2,7 @@
 # works on Linux AND OSX
 sub portable_unmount {
     my $crypt = shift;
-    qx(./build/encfs -u "$crypt" >/dev/null);
+    qx(.\\encfs\\Release\\encfs.exe -u "$crypt");
 }
 
 # Helper function
@@ -86,6 +86,7 @@ sub writeZeroes
         my $filename = shift;
         my $size = shift;
         open(my $fh, ">", $filename);
+		$fh->autoflush;
         my $bs = 4096; # 4 KiB
         my $block = "\0" x $bs;
         my $remain;

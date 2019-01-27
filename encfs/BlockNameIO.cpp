@@ -113,7 +113,7 @@ BlockNameIO::BlockNameIO(const Interface &iface, std::shared_ptr<Cipher> cipher,
 
 BlockNameIO::~BlockNameIO() = default;
 
-Interface BlockNameIO::interface() const {
+Interface BlockNameIO::getInterface() const {
   return CurrentInterface(_caseInsensitive);
 }
 

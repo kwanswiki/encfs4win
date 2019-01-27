@@ -91,7 +91,7 @@ class SSL_Cipher : public Cipher {
   virtual ~SSL_Cipher();
 
   // returns the real interface, not the one we're emulating (if any)..
-  virtual Interface interface() const;
+  virtual Interface getInterface() const;
 
   // create a new key based on a password
   virtual CipherKey newKey(const char *password, int passwdLength,

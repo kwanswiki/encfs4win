@@ -29,7 +29,7 @@
 #endif
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
+#include "unistd.h"
 
 #include "CipherFileIO.h"
 #include "Error.h"
@@ -99,7 +99,7 @@ const char *FileNode::plaintextName() const { return _pname.c_str(); }
 string FileNode::plaintextParent() const { return parentDirectory(_pname); }
 
 static bool setIV(const std::shared_ptr<FileIO> &io, uint64_t iv) {
-  struct stat stbuf;
+  struct stat_st stbuf;
   if ((io->getAttr(&stbuf) < 0) || S_ISREG(stbuf.st_mode)) {
     return io->setIV(iv);
   }
@@ -152,6 +152,7 @@ int FileNode::mknod(mode_t mode, dev_t rdev, uid_t uid, gid_t gid) {
   Lock _lock(mutex);
 
   int res;
+#if 0
   int olduid = -1;
   int oldgid = -1;
   if (gid != 0) {
@@ -170,22 +171,30 @@ int FileNode::mknod(mode_t mode, dev_t rdev, uid_t uid, gid_t gid) {
       return -EPERM;
     }
   }
+#endif
 
   /*
    * cf. xmp_mknod() in fusexmp.c
    * The regular file stuff could be stripped off if there
    * were a create method (advised to have)
    */
-  if (S_ISREG(mode)) {
-    res = ::open(_cname.c_str(), O_CREAT | O_EXCL | O_WRONLY, mode);
+  if (S_ISREG(mode) || !(mode & _S_IFMT)) {
+    res = unix::open(_cname.c_str(), O_CREAT | O_EXCL | O_WRONLY, mode);
     if (res >= 0) {
       res = ::close(res);
     }
+#if 0
   } else if (S_ISFIFO(mode)) {
     res = ::mkfifo(_cname.c_str(), mode);
   } else {
     res = ::mknod(_cname.c_str(), mode, rdev);
+#else
   }
+  else {
+	  errno = ENOSYS;
+	  res = -1;
+  }
+#endif
 
   if (res == -1) {
     int eno = errno;
@@ -193,6 +202,7 @@ int FileNode::mknod(mode_t mode, dev_t rdev, uid_t uid, gid_t gid) {
     res = -eno;
   }
 
+#if 0
   if (olduid >= 0) {
     if(setfsuid(olduid) == -1) {
       int eno = errno;
@@ -207,6 +217,7 @@ int FileNode::mknod(mode_t mode, dev_t rdev, uid_t uid, gid_t gid) {
       // does not return error here as initial setfsgid worked
     }
   }
+#endif
 
   return res;
 }
@@ -218,21 +229,21 @@ int FileNode::open(int flags) const {
   return res;
 }
 
-int FileNode::getAttr(struct stat *stbuf) const {
+int FileNode::getAttr(struct stat_st *stbuf) const {
   Lock _lock(mutex);
 
   int res = io->getAttr(stbuf);
   return res;
 }
 
-off_t FileNode::getSize() const {
+FUSE_OFF_T FileNode::getSize() const {
   Lock _lock(mutex);
 
   off_t res = io->getSize();
   return res;
 }
 
-ssize_t FileNode::read(off_t offset, unsigned char *data, size_t size) const {
+ssize_t FileNode::read(FUSE_OFF_T offset, unsigned char *data, size_t size) const {
   IORequest req;
   req.offset = offset;
   req.dataLen = size;
@@ -243,7 +254,7 @@ ssize_t FileNode::read(off_t offset, unsigned char *data, size_t size) const {
   return io->read(req);
 }
 
-ssize_t FileNode::write(off_t offset, unsigned char *data, size_t size) {
+ssize_t FileNode::write(FUSE_OFF_T offset, unsigned char *data, size_t size) {
   VLOG(1) << "FileNode::write offset " << offset << ", data size " << size;
 
   IORequest req;
@@ -261,7 +272,7 @@ ssize_t FileNode::write(off_t offset, unsigned char *data, size_t size) {
   return size;
 }
 
-int FileNode::truncate(off_t size) {
+int FileNode::truncate(FUSE_OFF_T size) {
   Lock _lock(mutex);
 
   return io->truncate(size);
@@ -275,13 +286,13 @@ int FileNode::sync(bool datasync) {
     int res = -EIO;
 #if defined(HAVE_FDATASYNC)
     if (datasync) {
-      res = fdatasync(fh);
+      res = unix::fdatasync(fh);
     } else {
-      res = fsync(fh);
+      res = unix::fsync(fh);
     }
 #else
     (void)datasync;
-    res = fsync(fh);
+    res = unix::fsync(fh);
 #endif
 
     if (res == -1) {

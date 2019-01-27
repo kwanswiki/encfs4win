@@ -31,7 +31,7 @@
 namespace encfs {
 
 struct IORequest {
-  off_t offset;
+  FUSE_OFF_T offset;
 
   // amount of bytes to read/write.
   size_t dataLen;
@@ -47,7 +47,7 @@ class FileIO {
   FileIO();
   virtual ~FileIO();
 
-  virtual Interface interface() const = 0;
+  virtual Interface getInterface() const = 0;
 
   // default implementation returns 1, meaning this is not block oriented.
   virtual unsigned int blockSize() const;
@@ -64,13 +64,13 @@ class FileIO {
   virtual int open(int flags) = 0;
 
   // get filesystem attributes for a file
-  virtual int getAttr(struct stat *stbuf) const = 0;
-  virtual off_t getSize() const = 0;
+  virtual int getAttr(struct stat_st *stbuf) const = 0;
+  virtual FUSE_OFF_T getSize() const = 0;
 
   virtual ssize_t read(const IORequest &req) const = 0;
   virtual ssize_t write(const IORequest &req) = 0;
 
-  virtual int truncate(off_t size) = 0;
+  virtual int truncate(FUSE_OFF_T size) = 0;
 
   virtual bool isWritable() const = 0;
 

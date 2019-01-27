@@ -21,12 +21,12 @@
 #ifndef _DirNode_incl_
 #define _DirNode_incl_
 
-#include <dirent.h>
+#include "dirent.h"
 #include <inttypes.h>
 #include <list>
 #include <map>
 #include <memory>
-#include <pthread.h>
+#include "pthread.h"
 #include <stdint.h>
 #include <string>
 #include <sys/types.h>
@@ -48,7 +48,7 @@ struct RenameEl;
 
 class DirTraverse {
  public:
-  DirTraverse(std::shared_ptr<DIR> dirPtr, uint64_t iv,
+  DirTraverse(std::shared_ptr<unix::DIR> dirPtr, uint64_t iv,
               std::shared_ptr<NameIO> naming, bool root);
   ~DirTraverse();
 
@@ -69,7 +69,7 @@ class DirTraverse {
   std::string nextInvalid();
 
  private:
-  std::shared_ptr<DIR> dir;  // struct DIR
+  std::shared_ptr<unix::DIR> dir;  // struct DIR
   // initialization vector to use.  Not very general purpose, but makes it
   // more efficient to support filename IV chaining..
   uint64_t iv;

@@ -73,7 +73,7 @@ class Cipher {
   Cipher();
   virtual ~Cipher();
 
-  virtual Interface interface() const = 0;
+  virtual Interface getInterface() const = 0;
 
   // create a new key based on a password
   // if iterationCount == 0, then iteration count will be determined

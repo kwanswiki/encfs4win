@@ -24,7 +24,7 @@
 #include <atomic>
 #include <inttypes.h>
 #include <memory>
-#include <pthread.h>
+#include "pthread.h"
 #include <stdint.h>
 #include <string>
 #include <sys/types.h>
@@ -76,14 +76,14 @@ class FileNode {
   int open(int flags) const;
 
   // getAttr returns 0 on success, -errno on failure
-  int getAttr(struct stat *stbuf) const;
-  off_t getSize() const;
+  int getAttr(struct stat_st *stbuf) const;
+  FUSE_OFF_T getSize() const;
 
-  ssize_t read(off_t offset, unsigned char *data, size_t size) const;
-  ssize_t write(off_t offset, unsigned char *data, size_t size);
+  ssize_t read(FUSE_OFF_T offset, unsigned char *data, size_t size) const;
+  ssize_t write(FUSE_OFF_T offset, unsigned char *data, size_t size);
 
   // truncate the file to a particular size
-  int truncate(off_t size);
+  int truncate(FUSE_OFF_T size);
 
   // datasync or full sync
   int sync(bool dataSync);
