@@ -40,7 +40,7 @@ class NullCipher : public Cipher {
   NullCipher(const Interface &iface);
   virtual ~NullCipher();
 
-  virtual Interface interface() const;
+  virtual Interface getInterface() const;
 
   // create a new key based on a password
   virtual CipherKey newKey(const char *password, int passwdLength,

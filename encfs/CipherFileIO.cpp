@@ -46,6 +46,7 @@ namespace encfs {
 */
 static Interface CipherFileIO_iface("FileIO/Cipher", 2, 0, 1);
 
+
 const int HEADER_SIZE = 8;  // 64 bit initialization vector..
 
 CipherFileIO::CipherFileIO(std::shared_ptr<FileIO> _base,
@@ -66,7 +67,7 @@ CipherFileIO::CipherFileIO(std::shared_ptr<FileIO> _base,
 
 CipherFileIO::~CipherFileIO() = default;
 
-Interface CipherFileIO::interface() const { return CipherFileIO_iface; }
+Interface CipherFileIO::getInterface() const { return CipherFileIO_iface; }
 
 int CipherFileIO::open(int flags) {
   int res = base->open(flags);
@@ -132,7 +133,7 @@ bool CipherFileIO::setIV(uint64_t iv) {
  * Upper file   = file we present to the user via FUSE
  * Backing file = file that is actually on disk
  */
-int CipherFileIO::getAttr(struct stat *stbuf) const {
+int CipherFileIO::getAttr(struct stat_st *stbuf) const {
 
   // stat() the backing file
   int res = base->getAttr(stbuf);
@@ -159,8 +160,8 @@ int CipherFileIO::getAttr(struct stat *stbuf) const {
  * Get the size for an upper file
  * See getAttr() for an explaination of the reverse handling
  */
-off_t CipherFileIO::getSize() const {
-  off_t size = base->getSize();
+FUSE_OFF_T CipherFileIO::getSize() const {
+  FUSE_OFF_T size = base->getSize();
   // No check on S_ISREG here -- don't call getSize over getAttr unless this
   // is a normal file!
   if (haveHeader && size > 0) {
@@ -177,7 +178,7 @@ off_t CipherFileIO::getSize() const {
 int CipherFileIO::initHeader() {
   // check if the file has a header, and read it if it does..  Otherwise,
   // create one.
-  off_t rawSize = base->getSize();
+  FUSE_OFF_T rawSize = base->getSize();
   if (rawSize >= HEADER_SIZE) {
     VLOG(1) << "reading existing header, rawSize = " << rawSize;
     // has a header.. read it
@@ -282,7 +283,7 @@ bool CipherFileIO::writeHeader() {
  */
 int CipherFileIO::generateReverseHeader(unsigned char *headerBuf) {
 
-  struct stat stbuf;
+  struct stat_st stbuf;
   int res = getAttr(&stbuf);
   rAssert(res == 0);
   ino_t ino = stbuf.st_ino;
@@ -327,7 +328,7 @@ int CipherFileIO::generateReverseHeader(unsigned char *headerBuf) {
  */
 ssize_t CipherFileIO::readOneBlock(const IORequest &req) const {
   int bs = blockSize();
-  off_t blockNum = req.offset / bs;
+  FUSE_OFF_T blockNum = req.offset / bs;
 
   IORequest tmpReq = req;
 
@@ -378,7 +379,7 @@ ssize_t CipherFileIO::writeOneBlock(const IORequest &req) {
   }
 
   unsigned int bs = blockSize();
-  off_t blockNum = req.offset / bs;
+  FUSE_OFF_T blockNum = req.offset / bs;
 
   if (haveHeader && fileIV == 0) {
     int res = initHeader();
@@ -459,7 +460,7 @@ bool CipherFileIO::streamRead(unsigned char *buf, int size,
   return cipher->streamDecode(buf, size, _iv64, key);
 }
 
-int CipherFileIO::truncate(off_t size) {
+int CipherFileIO::truncate(FUSE_OFF_T size) {
   int res = 0;
   int reopen = 0;
   // well, we will truncate, so we need a write access to the file
@@ -506,8 +507,8 @@ ssize_t CipherFileIO::read(const IORequest &origReq) const {
   /* if reverse mode is not active with uniqueIV,
    * the read request is handled by the base class */
   if (!(fsConfig->reverseEncryption && haveHeader)) {
-    VLOG(1) << "relaying request to base class: offset=" << origReq.offset
-            << ", dataLen=" << origReq.dataLen;
+    /*VLOG(1) << "relaying request to base class: offset=" << origReq.offset
+            << ", dataLen=" << origReq.dataLen;*/
     return BlockFileIO::read(origReq);
   }
 

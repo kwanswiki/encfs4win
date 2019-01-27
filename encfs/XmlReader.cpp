@@ -27,7 +27,7 @@
 #include <memory>     // for shared_ptr
 #include <sstream>    // for ostringstream
 
-#include <tinyxml2.h>  // for XMLElement, XMLNode, XMLDocument (ptr only)
+#include "tinyxml2.h"  // for XMLElement, XMLNode, XMLDocument (ptr only)
 
 #include "Error.h"
 #include "Interface.h"

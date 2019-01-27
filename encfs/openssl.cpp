@@ -22,7 +22,8 @@
 
 #include <cstdlib>
 #include <openssl/crypto.h>
-#include <pthread.h>
+#include "pthread.h"
+#include <stdlib.h>
 
 #define NO_DES
 #include <openssl/rand.h>
@@ -35,7 +36,7 @@
 
 namespace encfs {
 
-unsigned long pthreads_thread_id() { return (unsigned long)pthread_self(); }
+unsigned long pthreads_thread_id() { return GetCurrentThreadId(); }
 
 static pthread_mutex_t *crypto_locks = nullptr;
 void pthreads_locking_callback(int mode, int n, const char *caller_file,

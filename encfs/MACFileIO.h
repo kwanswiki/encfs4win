@@ -48,17 +48,17 @@ class MACFileIO : public BlockFileIO {
   MACFileIO();
   virtual ~MACFileIO();
 
-  virtual Interface interface() const;
+  virtual Interface getInterface() const;
 
   virtual void setFileName(const char *fileName);
   virtual const char *getFileName() const;
   virtual bool setIV(uint64_t iv);
 
   virtual int open(int flags);
-  virtual int getAttr(struct stat *stbuf) const;
-  virtual off_t getSize() const;
+  virtual int getAttr(struct stat_st *stbuf) const;
+  virtual FUSE_OFF_T getSize() const;
 
-  virtual int truncate(off_t size);
+  virtual int truncate(FUSE_OFF_T size);
 
   virtual bool isWritable() const;
 

@@ -48,7 +48,7 @@ class CipherFileIO : public BlockFileIO {
   CipherFileIO(std::shared_ptr<FileIO> base, const FSConfigPtr &cfg);
   virtual ~CipherFileIO();
 
-  virtual Interface interface() const;
+  virtual Interface getInterface() const;
 
   virtual void setFileName(const char *fileName);
   virtual const char *getFileName() const;
@@ -56,10 +56,10 @@ class CipherFileIO : public BlockFileIO {
 
   virtual int open(int flags);
 
-  virtual int getAttr(struct stat *stbuf) const;
-  virtual off_t getSize() const;
+  virtual int getAttr(struct stat_st *stbuf) const;
+  virtual FUSE_OFF_T getSize() const;
 
-  virtual int truncate(off_t size);
+  virtual int truncate(FUSE_OFF_T size);
 
   virtual bool isWritable() const;
 

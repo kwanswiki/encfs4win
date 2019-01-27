@@ -84,7 +84,7 @@ NullCipher::NullCipher(const Interface &iface_) { this->iface = iface_; }
 
 NullCipher::~NullCipher() = default;
 
-Interface NullCipher::interface() const { return iface; }
+Interface NullCipher::getInterface() const { return iface; }
 
 CipherKey NullCipher::newKey(const char *, int, int &, long,
                              const unsigned char *, int) {

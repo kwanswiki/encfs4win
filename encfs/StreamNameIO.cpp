@@ -80,7 +80,7 @@ StreamNameIO::StreamNameIO(const Interface &iface,
 
 StreamNameIO::~StreamNameIO() = default;
 
-Interface StreamNameIO::interface() const { return CurrentInterface(); }
+Interface StreamNameIO::getInterface() const { return CurrentInterface(); }
 
 int StreamNameIO::maxEncodedNameLen(int plaintextStreamLen) const {
   int encodedStreamLen = 2 + plaintextStreamLen;

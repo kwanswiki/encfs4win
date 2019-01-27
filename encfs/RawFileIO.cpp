@@ -27,7 +27,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#include "unistd.h"
 #include <utility>
 
 #include "Error.h"
@@ -70,15 +70,15 @@ RawFileIO::~RawFileIO() {
   swap(_oldfd, oldfd);
 
   if (_oldfd != -1) {
-    close(_oldfd);
+    unix::close(_oldfd);
   }
 
   if (_fd != -1) {
-    close(_fd);
+    unix::close(_fd);
   }
 }
 
-Interface RawFileIO::interface() const { return RawFileIO_iface; }
+Interface RawFileIO::getInterface() const { return RawFileIO_iface; }
 
 /*
     Workaround for opening a file for write when permissions don't allow.
@@ -95,13 +95,13 @@ Interface RawFileIO::interface() const { return RawFileIO_iface; }
 */
 static int open_readonly_workaround(const char *path, int flags) {
   int fd = -1;
-  struct stat stbuf;
+  struct stat_st stbuf;
   memset(&stbuf, 0, sizeof(struct stat));
-  if (lstat(path, &stbuf) != -1) {
+  if (unix::lstat(path, &stbuf) != -1) {
     // make sure user has read/write permission..
-    if (chmod(path, stbuf.st_mode | 0600) != -1) {
-      fd = ::open(path, flags);
-      chmod(path, stbuf.st_mode);
+    if (unix::chmod(path, stbuf.st_mode | 0600) != -1) {
+      fd = ::my_open(path, flags);
+      unix::chmod(path, stbuf.st_mode);
     }
   }
   return fd;
@@ -133,11 +133,13 @@ int RawFileIO::open(int flags) {
     finalFlags |= O_LARGEFILE;
   }
 #else
+#ifndef _WIN32
 #warning O_LARGEFILE not supported
+#endif
 #endif
 
   int eno = 0;
-  int newFd = ::open(name.c_str(), finalFlags);
+  int newFd = ::my_open(name.c_str(), finalFlags);
   if (newFd < 0) {
     eno = errno;
   }
@@ -169,8 +171,8 @@ int RawFileIO::open(int flags) {
   return fd;
 }
 
-int RawFileIO::getAttr(struct stat *stbuf) const {
-  int res = lstat(name.c_str(), stbuf);
+int RawFileIO::getAttr(struct stat_st *stbuf) const {
+  int res = unix::lstat(name.c_str(), stbuf);
   int eno = errno;
 
   if (res < 0) {
@@ -184,11 +186,11 @@ void RawFileIO::setFileName(const char *fileName) { name = fileName; }
 
 const char *RawFileIO::getFileName() const { return name.c_str(); }
 
-off_t RawFileIO::getSize() const {
+FUSE_OFF_T RawFileIO::getSize() const {
   if (!knownSize) {
-    struct stat stbuf;
-    memset(&stbuf, 0, sizeof(struct stat));
-    int res = lstat(name.c_str(), &stbuf);
+	struct stat_st stbuf;
+    memset(&stbuf, 0, sizeof(struct stat_st));
+    int res = unix::lstat(name.c_str(), &stbuf);
 
     if (res == 0) {
       const_cast<RawFileIO *>(this)->fileSize = stbuf.st_size;
@@ -205,7 +207,7 @@ off_t RawFileIO::getSize() const {
 ssize_t RawFileIO::read(const IORequest &req) const {
   rAssert(fd >= 0);
 
-  ssize_t readSize = pread(fd, req.data, req.dataLen, req.offset);
+  ssize_t readSize = unix::pread(fd, req.data, req.dataLen, req.offset);
 
   if (readSize < 0) {
     int eno = errno;
@@ -224,7 +226,7 @@ ssize_t RawFileIO::write(const IORequest &req) {
   // int retrys = 10;
   void *buf = req.data;
   ssize_t bytes = req.dataLen;
-  off_t offset = req.offset;
+  FUSE_OFF_T offset = req.offset;
 
   /*
    * Let's write while pwrite() writes, to avoid writing only a part of the
@@ -234,7 +236,7 @@ ssize_t RawFileIO::write(const IORequest &req) {
    */
   // while ((bytes != 0) && retrys > 0) {
   while (bytes != 0) {
-    ssize_t writeSize = ::pwrite(fd, buf, bytes, offset);
+    ssize_t writeSize = unix::pwrite(fd, buf, bytes, offset);
 
     if (writeSize < 0) {
       int eno = errno;
@@ -262,7 +264,7 @@ ssize_t RawFileIO::write(const IORequest &req) {
   //   return (eno) ? -eno : -EIO;
   // }
   if (knownSize) {
-    off_t last = req.offset + req.dataLen;
+    FUSE_OFF_T last = req.offset + req.dataLen;
     if (last > fileSize) {
       fileSize = last;
     }
@@ -271,13 +273,13 @@ ssize_t RawFileIO::write(const IORequest &req) {
   return req.dataLen;
 }
 
-int RawFileIO::truncate(off_t size) {
+int RawFileIO::truncate(FUSE_OFF_T size) {
   int res;
 
   if (fd >= 0 && canWrite) {
-    res = ::ftruncate(fd, size);
+    res = unix::ftruncate(fd, size);
   } else {
-    res = ::truncate(name.c_str(), size);
+    res = unix::truncate(name.c_str(), size);
   }
 
   if (res < 0) {

@@ -16,7 +16,7 @@
  */
 
 #include <fcntl.h>
-#include <getopt.h>
+#include "getopt.h"
 #include <iostream>
 #include <limits.h>
 #include <memory>
@@ -26,11 +26,13 @@
 #include <string>
 #include <sys/stat.h>
 #include <time.h>
-#include <unistd.h>
+#include "unistd.h"
 #include <vector>
 
 #define NO_DES
 #include <openssl/ssl.h>
+
+#define ELPP_CUSTOM_COUT std::cerr
 
 #include "Cipher.h"
 #include "CipherKey.h"
@@ -44,6 +46,25 @@
 #include "config.h"
 #include "i18n.h"
 #include "intl/gettext.h"
+
+#if defined(WIN32)
+# if !defined(PATH_MAX)
+#  define PATH_MAX MAX_PATH
+# endif
+# define ngettext(a,b,n) (((n) == 1) ? (a): (b))
+static inline ssize_t readlink(const char *s, char *d, size_t n) { return -1; }
+static inline int symlink(const char *oldpath, const char *newpath) { return -1; }
+# define S_IFLNK 0
+# define S_ISLNK(mode) 0
+static inline struct tm *localtime_r(const time_t *timep, struct tm *result)
+{
+	errno_t res = localtime_s(result, timep);
+	if (res) {
+		return NULL;
+	}
+	return result;
+}
+#endif
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -343,11 +364,17 @@ static int cmd_ls(int argc, char **argv) {
            name = dt.nextPlaintextName()) {
         std::shared_ptr<FileNode> fnode =
             rootInfo->root->lookupNode(name.c_str(), "encfsctl-ls");
-        struct stat stbuf;
+		struct stat_st stbuf;
         fnode->getAttr(&stbuf);
 
         struct tm stm;
-        localtime_r(&stbuf.st_mtime, &stm);
+
+#ifdef USE_LEGACY_DOKAN
+		localtime_r(&stbuf.st_mtime, &stm);
+#else
+		localtime_r(&stbuf.st_mtim.tv_sec, &stm);
+#endif
+
         stm.tm_year += 1900;
         // TODO: when I add "%s" to the end and name.c_str(), I get a
         // seg fault from within strlen.  Why ???
@@ -392,6 +419,9 @@ int processContents(const std::shared_ptr<EncFS_Root> &rootInfo,
       int res = op(buf, bytes);
       if (res < 0) return res;
     }
+
+    // Ensure everything is pushed to disk 
+    fflush(stdout);
   }
   return 0;
 }
@@ -414,13 +444,18 @@ static int cmd_cat(int argc, char **argv) {
   if (!rootInfo) return EXIT_FAILURE;
 
   const char *path = argv[0];
+
+#ifdef _WIN32
+  _setmode(_fileno(stdout), O_BINARY);
+#endif
+
   WriteOutput output(STDOUT_FILENO);
   int errCode = processContents(rootInfo, path, output);
 
   return errCode;
 }
 
-static int copyLink(const struct stat &stBuf,
+static int copyLink(const struct stat_st &stBuf,
                     const std::shared_ptr<EncFS_Root> &rootInfo,
                     const string &cpath, const string &destName) {
   std::vector<char> buf(stBuf.st_size + 1, '\0');
@@ -451,7 +486,7 @@ static int copyContents(const std::shared_ptr<EncFS_Root> &rootInfo,
     cerr << "unable to open " << encfsName << "\n";
     return EXIT_FAILURE;
   } else {
-    struct stat st;
+    struct stat_st st;
 
     if (node->getAttr(&st) != 0) return EXIT_FAILURE;
 
@@ -469,7 +504,7 @@ static int copyContents(const std::shared_ptr<EncFS_Root> &rootInfo,
         return EXIT_FAILURE;
       }
     } else {
-      int outfd = creat(targetName, st.st_mode);
+      int outfd = _creat(targetName, _S_IREAD | _S_IWRITE);
 
       WriteOutput output(outfd);
       processContents(rootInfo, encfsName, output);
@@ -493,12 +528,12 @@ static int traverseDirs(const std::shared_ptr<EncFS_Root> &rootInfo,
   // Lookup directory node so we can create a destination directory
   // with the same permissions
   {
-    struct stat st;
+    struct stat_st st;
     std::shared_ptr<FileNode> dirNode =
         rootInfo->root->lookupNode(volumeDir.c_str(), "encfsctl");
     if (dirNode->getAttr(&st)) return EXIT_FAILURE;
 
-    mkdir(destDir.c_str(), st.st_mode);
+    unix::mkdir(destDir.c_str(), st.st_mode);
   }
 
   // show files in directory
@@ -513,8 +548,8 @@ static int traverseDirs(const std::shared_ptr<EncFS_Root> &rootInfo,
         string destName = destDir + name;
 
         int r = EXIT_SUCCESS;
-        struct stat stBuf;
-        if (!lstat(cpath.c_str(), &stBuf)) {
+        struct stat_st stBuf;
+        if (!unix::lstat(cpath.c_str(), &stBuf)) {
           if (S_ISDIR(stBuf.st_mode)) {
             traverseDirs(rootInfo, (plainPath + '/').c_str(), destName + '/');
           } else if (S_ISLNK(stBuf.st_mode)) {
@@ -711,7 +746,13 @@ static int ckpasswdAutomaticly(int argc, char **argv) {
   return do_chpasswd(true, false, true, argc, argv);
 }
 
+namespace encfs {
+	void init_mpool_mutex();
+}
+
 int main(int argc, char **argv) {
+  encfs::init_mpool_mutex();
+  
   START_EASYLOGGINGPP(argc, argv);
   encfs::initLogging();
 

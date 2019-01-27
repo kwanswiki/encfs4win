@@ -32,6 +32,8 @@
 #include <cstdlib>  // for free
 #include <cstring>  // for strdup
 
+extern "C" int vasprintf(char **ret, const char *fmt, va_list ap);
+
 namespace gnu {
 
 /* Constructor: takes a format string and the printf arguments.  */
@@ -46,7 +48,7 @@ autosprintf::autosprintf(const char *format, ...) { // NOLINT (cert-dcl50-cpp) a
 
 /* Copy constructor.  Necessary because the destructor is nontrivial.  */
 autosprintf::autosprintf(const autosprintf &src) {
-  str = (src.str != nullptr ? strdup(src.str) : nullptr);
+  str = (src.str != nullptr ? _strdup(src.str) : nullptr);
 }
 
 /* Destructor: frees the temporarily allocated string.  */

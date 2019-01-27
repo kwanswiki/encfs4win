@@ -64,7 +64,7 @@ class NameIO {
   NameIO();
   virtual ~NameIO();
 
-  virtual Interface interface() const = 0;
+  virtual Interface getInterface() const = 0;
 
   void setChainedNameIV(bool enable);
   bool getChainedNameIV() const;

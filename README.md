@@ -1,82 +1,74 @@
-# EncFS - an Encrypted Filesystem
+# encfs4win - Windows port of EncFS 
 
-_Build Status_
- - Travis: [![Travis CI](https://travis-ci.org/vgough/encfs.svg?branch=master)](https://travis-ci.org/vgough/encfs)
+[![Build status](https://ci.appveyor.com/api/projects/status/5tpsgd73ndv89v3e/branch/master?svg=true)](https://ci.appveyor.com/project/jetwhiz/encfs4win/branch/master)
 
 ## About
 
-EncFS provides an encrypted filesystem in user-space. It runs in userspace,
-using the FUSE library for the filesystem interface. EncFS is open source
-software, licensed under the LGPL.
+EncFS4win is a revival of the original encfs4win project, but has been brought up-to-date with recent changes done to the EncFS project.  The original encfs4win was based on EncFS v1.7.4, which was shown to have some [security issues](https://defuse.ca/audits/encfs.htm). [Updates to EncFS](https://github.com/vgough/encfs) have been done recently to fix many of these issues, and the goal of this project is to port these modernizations to Windows. 
 
-EncFS is now over 10 years old (first release in 2003).  It was written because
-older NFS and kernel-based encrypted filesystems such as CFS had not kept pace with Linux
-development.  When FUSE became available, I wrote a CFS replacement for my own
-use and released the first version to Open Source in 2003.
+EncFS encrypts individual files, by translating all requests for the virtual EncFS filesystem into the equivalent encrypted operations on the raw filesystem.
 
-EncFS encrypts individual files, by translating all requests for the virtual
-EncFS filesystem into the equivalent encrypted operations on the raw
-filesystem.
+A GUI for encfs4win is available through encfsw, providing a tray icon that makes mounting and unmounting encrypted partitions even easier! 
+
+EncFS provides an encrypted filesystem in user-space, using the [Dokan library](https://github.com/dokan-dev/dokany) for the filesystem interface. EncFS is open source software, licensed under the LGPL.
 
 For more info, see:
 
  - The excellent [encfs manpage](encfs/encfs.pod)
  - The technical overview in [DESIGN.md](DESIGN.md)
 
+**NOTE:** *Be sure to use a drive (like "X:") as plain_dir to avoid case sensitive problems which results in file/folder not found problems!*
+
+## Installing
+
+Installation is as simple as a few clicks!  Simply download the latest encfs4win installer from [encfs4win/releases](https://github.com/jetwhiz/encfs4win/releases) (e.g., encfs4win-installer.exe) and run it.  
+
+The installer contains everything needed to run encfs on Windows, including the encfs executables, OpenSSL libraries, and all necessary MS Visual C++ libraries. It will also automatically install the Dokan library (if it is not already installed). 
+
+Encfs4win is also now available through the [Chocolatey](https://github.com/chocolatey/choco) package manager.  For installation instructions via choco, please refer to https://chocolatey.org/packages/encfs4win.
+
+## Building
+
+Encfs4win has a few dependencies: 
+
+* [Visual Studio 2015](https://www.visualstudio.com/en-us/downloads/download-visual-studio-vs.aspx) - For building the project (including Visual C++ and Windows SDK 10).
+* [Dokan library](https://github.com/dokan-dev/dokany) - Handles FUSE portion of software.  You can use either legacy (e.g., v0.7.4) or latest (v1.0). 
+* [TinyXML2 library](https://github.com/leethomason/tinyxml2) - Reads and writes configuration files for encfs.
+* [Easylogging++](https://github.com/easylogging/easyloggingpp) - Provides logging functionality. 
+* [OpenSSL library](https://github.com/openssl/openssl) - Always use the latest version.  Note that you must have Perl installed in order to build OpenSSL!
+
+### Automated version
+
+Encfs4win now comes with a fully-automated build tool called "build.bat", located in the root directory. This tool will automatically download, build and install Dokan, TinyXML2, Easylogging++ and OpenSSL, before finally building encfs.  Look for "encfs.exe" and "encfsctl.exe" in the encfs\Release folder after building is finished. 
+
+The automated tool will also check to see if any of these prerequisites are already installed (by looking for the DOKAN_ROOT and OPENSSL_ROOT environment variables).  If found, it will use the installed version and skip over that prerequisite.  
+
+*Note that this tool also has the capability to build libgcrypt (and libgpg-error) if you provide the "--beta" argument (MSYS required).  Encfs is still in the process of providing support for the libgcrypt library, however.*
+
+### Manual version
+
+You can also choose to handle some or all of the prerequisites yourself.  After the above dependencies have been installed and built, simply open the encfs4win solution (encfs/encfs.sln) and build the solution.  Note that you must have the environment variables DOKAN_ROOT and OPENSSL_ROOT pointing to your Dokan and OpenSSL installations, respectively (otherwise you will need to modify the solution to point to your installations).  
+
+This will result in encfs.exe and encfsctl.exe binaries being built and placed in the encfs\Release directory. 
+
+## Environment
+
+Encfs4win works on: 
+
+* Windows 10
+* Windows 8 and 8.1
+* Windows Server 2012
+* Windows 7
+
 ## Status
 
-Over the last 10 years, a number of good alternatives have grown up.  Computing
-power has increased to the point where it is reasonable to encrypt the entire
-filesystem of personal computers (and even mobile phones!).  On Linux, ecryptfs
-provides a nice dynamically mountable encrypted home directory, and is well
-integrated in distributions I use, such as Ubuntu.
+I will try to keep this updated with the [EncFS project](https://github.com/vgough/encfs) as changes come in upstream.  
 
-EncFS has been dormant for a while.  I've started cleaning up in order to try
-and provide a better base for a version 2, but whether EncFS flowers again
-depends upon community interest.  In order to make it easier for anyone to
-contribute, it is moving a new home on Github.  So if you're interested in
-EncFS, please dive in!
+EncFS4win has been successfully built against the original release of Dokan (v0.7.x) as well as the latest Dokan (v1.x.x).  
 
-## Unique Features
+## Credits
 
-EncFS has a few features still not found anywhere else (as of Dec 2014)
-that may be interesting to you:
-
-### Reverse mode
-
-`encfs --reverse` provides an encrypted view of an unencrypted folder.
-This enables encrypted remote backups using standard tools like rsync.
-
-### Fast on classical HDDs
-
-EncFS is typically *much* faster than ecryptfs for stat()-heavy workloads
-when the backing device is a classical hard disk.
-This is because ecryptfs has to to read each file header to determine
-the file size - EncFS does not. This is one additional seek for each
-stat.
-See [PERFORMANCE.md](PERFORMANCE.md) for detailed benchmarks on
-HDD, SSD and ramdisk.
-
-### Works on top of network filesystems
-
-EncFS works on network file systems (NFS, CIFS...), while ecryptfs
-is known to still have [problems][1].
-
-[1]: https://bugs.launchpad.net/ecryptfs/+bug/277578
-
-## Development
-
-The master branch contains the latest stable codebase.  This is where bug fixes
-and improvments should go.
-
-The [dev](https://github.com/vgough/encfs/tree/dev) branch contains experimental
-work, some of which may be back-ported to the master branch when it is stable. The
-dev branch is not stable, and there is no guarantee of backward compatibility
-between changes.
-
-## Donations
-
-How about a nice email instead?
+Special thanks to [vgough/encfs](https://github.com/vgough/encfs) and [freddy77/encfs4win](https://github.com/freddy77/encfs4win) for establishing the groundwork that made this project possible! 
 
 ## FAQ
 

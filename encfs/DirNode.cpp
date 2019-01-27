@@ -22,22 +22,28 @@
 
 #include <cerrno>
 #include <cstdio>
-#include <cstring>
-#ifdef __linux__
-#include <sys/fsuid.h>
-#endif
-#include <pthread.h>
+#include "pthread.h"
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
+#include "unistd.h"
 #include <utility>
-#include <utime.h>
+//#include <utime.h>
 
 #include "Context.h"
 #include "Error.h"
 #include "FSConfig.h"
 #include "FileNode.h"
 #include "FileUtils.h"
+#include "NameIO.h"
+#ifdef linux
+#include <sys/fsuid.h>
+#endif
+
+#include "easylogging++.h"
+#include <cstring>
+
+#include "Context.h"
+#include "Error.h"
 #include "Mutex.h"
 #include "NameIO.h"
 #include "easylogging++.h"
@@ -48,12 +54,12 @@ namespace encfs {
 
 class DirDeleter {
  public:
-  void operator()(DIR *d) { ::closedir(d); }
+  void operator()(unix::DIR *d) { unix::closedir(d); }
 };
 
-DirTraverse::DirTraverse(std::shared_ptr<DIR> _dirPtr, uint64_t _iv,
-                         std::shared_ptr<NameIO> _naming)
-    : dir(std::move(_dirPtr)), iv(_iv), naming(std::move(_naming)) {}
+DirTraverse::DirTraverse(std::shared_ptr<unix::DIR> _dirPtr, uint64_t _iv,
+                         std::shared_ptr<NameIO> _naming, bool _root)
+    : dir(std::move(_dirPtr)), iv(_iv), naming(std::move(_naming)), root(_root) {}
 
 DirTraverse &DirTraverse::operator=(const DirTraverse &src) = default;
 
@@ -61,18 +67,21 @@ DirTraverse::~DirTraverse() {
   dir.reset();
   iv = 0;
   naming.reset();
+  root = false;
 }
 
-static bool _nextName(struct dirent *&de, const std::shared_ptr<DIR> &dir,
+static bool _nextName(struct unix::dirent *&de, const std::shared_ptr<unix::DIR> &dir,
                       int *fileType, ino_t *inode) {
-  de = ::readdir(dir.get());
+  de = unix::readdir(dir.get());
 
   if (de != nullptr) {
     if (fileType != nullptr) {
 #if defined(HAVE_DIRENT_D_TYPE)
       *fileType = de->d_type;
 #else
+#ifndef _WIN32
 #warning "struct dirent.d_type not supported"
+#endif
       *fileType = 0;
 #endif
     }
@@ -88,8 +97,12 @@ static bool _nextName(struct dirent *&de, const std::shared_ptr<DIR> &dir,
 }
 
 std::string DirTraverse::nextPlaintextName(int *fileType, ino_t *inode) {
-  struct dirent *de = nullptr;
+  struct unix::dirent *de = nullptr;
   while (_nextName(de, dir, fileType, inode)) {
+    if (root && (strcmp(".encfs6.xml", de->d_name) == 0)) {
+      VLOG(1) << "skipping filename: " << de->d_name;
+      continue;
+    }
     try {
       uint64_t localIv = iv;
       return naming->decodePath(de->d_name, &localIv);
@@ -103,9 +116,13 @@ std::string DirTraverse::nextPlaintextName(int *fileType, ino_t *inode) {
 }
 
 std::string DirTraverse::nextInvalid() {
-  struct dirent *de = nullptr;
+  struct unix::dirent *de = nullptr;
   // find the first name which produces a decoding error...
   while (_nextName(de, dir, (int *)nullptr, (ino_t *)nullptr)) {
+    if (root && (strcmp(".encfs6.xml", de->d_name) == 0)) {
+      VLOG(1) << "skipping filename: " << de->d_name;
+      continue;
+    }
     try {
       uint64_t localIv = iv;
       naming->decodePath(de->d_name, &localIv);
@@ -174,14 +191,14 @@ bool RenameOp::apply() {
       // backing store rename.
       VLOG(1) << "renaming " << last->oldCName << " -> " << last->newCName;
 
-      struct stat st;
-      bool preserve_mtime = ::stat(last->oldCName.c_str(), &st) == 0;
+	  struct stat_st st;
+      bool preserve_mtime = unix::stat(last->oldCName.c_str(), &st) == 0;
 
       // internal node rename..
       dn->renameNode(last->oldPName.c_str(), last->newPName.c_str());
 
       // rename on disk..
-      if (::rename(last->oldCName.c_str(), last->newCName.c_str()) == -1) {
+      if (unix::rename(last->oldCName.c_str(), last->newCName.c_str()) == -1) {
         int eno = errno;
         RLOG(WARNING) << "Error renaming " << last->oldCName << ": "
                       << strerror(eno);
@@ -191,9 +208,16 @@ bool RenameOp::apply() {
 
       if (preserve_mtime) {
         struct utimbuf ut;
-        ut.actime = st.st_atime;
-        ut.modtime = st.st_mtime;
-        ::utime(last->newCName.c_str(), &ut);
+
+#ifdef USE_LEGACY_DOKAN
+		ut.actime = st.st_atime;
+		ut.modtime = st.st_mtime;
+#else 
+		ut.actime = st.st_atim.tv_sec;
+		ut.modtime = st.st_mtim.tv_sec;
+#endif
+
+        unix::utime(last->newCName.c_str(), &ut);
       }
 
       ++last;
@@ -224,7 +248,7 @@ void RenameOp::undo() {
 
     VLOG(1) << "undo: renaming " << it->newCName << " -> " << it->oldCName;
 
-    ::rename(it->newCName.c_str(), it->oldCName.c_str());
+    unix::rename(it->newCName.c_str(), it->oldCName.c_str());
     try {
       dn->renameNode(it->newPName.c_str(), it->oldPName.c_str(), false);
     } catch (encfs::Error &err) {
@@ -351,11 +375,11 @@ string DirNode::relativeCipherPath(const char *plaintextPath) {
 DirTraverse DirNode::openDir(const char *plaintextPath) {
   string cyName = rootDir + naming->encodePath(plaintextPath);
 
-  DIR *dir = ::opendir(cyName.c_str());
+  unix::DIR *dir = unix::opendir(cyName.c_str());
   if (dir == nullptr) {
     int eno = errno;
     VLOG(1) << "opendir error " << strerror(eno);
-    return DirTraverse(shared_ptr<DIR>(), 0, std::shared_ptr<NameIO>());
+    return DirTraverse(shared_ptr<DIR>(), 0, std::shared_ptr<NameIO>(), false);
   }
   std::shared_ptr<DIR> dp(dir, DirDeleter());
 
@@ -369,7 +393,7 @@ DirTraverse DirNode::openDir(const char *plaintextPath) {
   } catch (encfs::Error &err) {
     RLOG(ERROR) << "encode err: " << err.what();
   }
-  return DirTraverse(dp, iv, naming);
+  return DirTraverse(dp, iv, naming, (strlen(plaintextPath) == 1);
 }
 
 bool DirNode::genRenameList(list<RenameEl> &renameList, const char *fromP,
@@ -390,14 +414,14 @@ bool DirNode::genRenameList(list<RenameEl> &renameList, const char *fromP,
 
   // generate the real destination path, where we expect to find the files..
   VLOG(1) << "opendir " << sourcePath;
-  std::shared_ptr<DIR> dir =
-      std::shared_ptr<DIR>(opendir(sourcePath.c_str()), DirDeleter());
+  std::shared_ptr<unix::DIR> dir =
+      std::shared_ptr<unix::DIR>(unix::opendir(sourcePath.c_str()), DirDeleter());
   if (!dir) {
     return false;
   }
 
-  struct dirent *de = nullptr;
-  while ((de = ::readdir(dir.get())) != nullptr) {
+  struct unix::dirent *de = nullptr;
+  while ((de = unix::readdir(dir.get())) != nullptr) {
     // decode the name using the oldIV
     uint64_t localIV = fromIV;
     string plainName;
@@ -500,6 +524,7 @@ int DirNode::mkdir(const char *plaintextPath, mode_t mode, uid_t uid,
   VLOG(1) << "mkdir on " << cyName;
 
   // if uid or gid are set, then that should be the directory owner
+#if 0
   int olduid = -1;
   int oldgid = -1;
   if (gid != 0) {
@@ -518,8 +543,9 @@ int DirNode::mkdir(const char *plaintextPath, mode_t mode, uid_t uid,
       return -EPERM;
     }
   }
+#endif
 
-  int res = ::mkdir(cyName.c_str(), mode);
+  int res = unix::mkdir(cyName.c_str(), mode);
 
   if (res == -1) {
     int eno = errno;
@@ -576,11 +602,11 @@ int DirNode::rename(const char *fromPlaintext, const char *toPlaintext) {
 
   int res = 0;
   try {
-    struct stat st;
-    bool preserve_mtime = ::stat(fromCName.c_str(), &st) == 0;
+	struct stat_st st;
+    bool preserve_mtime = unix::stat(fromCName.c_str(), &st) == 0;
 
     renameNode(fromPlaintext, toPlaintext);
-    res = ::rename(fromCName.c_str(), toCName.c_str());
+    res = unix::rename(fromCName.c_str(), toCName.c_str());
 
     if (res == -1) {
       // undo
@@ -592,9 +618,16 @@ int DirNode::rename(const char *fromPlaintext, const char *toPlaintext) {
       }
     } else if (preserve_mtime) {
       struct utimbuf ut;
-      ut.actime = st.st_atime;
-      ut.modtime = st.st_mtime;
-      ::utime(toCName.c_str(), &ut);
+
+#ifdef USE_LEGACY_DOKAN
+	  ut.actime = st.st_atime;
+	  ut.modtime = st.st_mtime;
+#else
+	  ut.actime = st.st_atim.tv_sec;
+	  ut.modtime = st.st_mtim.tv_sec;
+#endif
+
+      unix::utime(toCName.c_str(), &ut);
     }
   } catch (encfs::Error &err) {
     // exception from renameNode, just show the error and continue..
@@ -624,12 +657,15 @@ int DirNode::link(const char *from, const char *to) {
   if (fsConfig->config->externalIVChaining) {
     VLOG(1) << "hard links not supported with external IV chaining!";
   } else {
+	  res = -ENOSYS;
+#if 0
     res = ::link(fromCName.c_str(), toCName.c_str());
     if (res == -1) {
       res = -errno;
     } else {
       res = 0;
     }
+#endif
   }
 
   return res;
@@ -731,6 +767,7 @@ int DirNode::unlink(const char *plaintextName) {
   Lock _lock(mutex);
 
   int res = 0;
+#if 0
   if ((ctx != nullptr) && ctx->lookupNode(plaintextName)) {
     // If FUSE is running with "hard_remove" option where it doesn't
     // hide open files for us, then we can't allow an unlink of an open
@@ -739,9 +776,11 @@ int DirNode::unlink(const char *plaintextName) {
                   << ", hard_remove option "
                      "is probably in effect";
     res = -EBUSY;
-  } else {
+  } else
+#endif
+  {
     string fullName = rootDir + cyName;
-    res = ::unlink(fullName.c_str());
+    res = unix::unlink(fullName.c_str());
     if (res == -1) {
       res = -errno;
       VLOG(1) << "unlink error: " << strerror(-res);

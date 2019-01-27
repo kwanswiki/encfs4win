@@ -45,7 +45,7 @@ NullNameIO::NullNameIO() = default;
 
 NullNameIO::~NullNameIO() = default;
 
-Interface NullNameIO::interface() const { return NNIOIface; }
+Interface NullNameIO::getInterface() const { return NNIOIface; }
 
 Interface NullNameIO::CurrentInterface() { return NNIOIface; }
 

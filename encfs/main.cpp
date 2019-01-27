@@ -16,21 +16,26 @@
  *
  */
 
+#define ELPP_CUSTOM_COUT std::cerr
+
+#include "encfs.h"
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <exception>
-#include <getopt.h>
+#include "getopt.h"
 #include <iostream>
 #include <memory>
-#include <pthread.h>
+#include "pthread.h"
 #include <sstream>
 #include <string>
 #include <sys/stat.h>
-#include <sys/time.h>
-#include <unistd.h>
+#include "sys/time.h"
+#include <time.h>
+#include "unistd.h"
+#include <signal.h>
 
 #include "Context.h"
 #include "Error.h"
@@ -38,7 +43,6 @@
 #include "MemoryPool.h"
 #include "autosprintf.h"
 #include "config.h"
-#include "encfs.h"
 #include "fuse.h"
 #include "i18n.h"
 #include "openssl.h"
@@ -48,10 +52,15 @@
 #define LONG_OPT_ANNOTATE 513
 #define LONG_OPT_NOCACHE 514
 #define LONG_OPT_REQUIRE_MAC 515
+#define LONG_OPT_FORKED 516
 
 using namespace std;
 using namespace encfs;
 using gnu::autosprintf;
+
+
+// Allow signal handlers to access mount context 
+std::shared_ptr<EncFS_Context> saved_ctx = NULL;
 
 namespace encfs {
 
@@ -68,6 +77,7 @@ const int MaxFuseArgs = 32;
  */
 struct EncFS_Args {
   bool isDaemon;    // true == spawn in background, log to syslog
+  bool isFork;      // true == treat as background daemon 
   bool isThreaded;  // true == threaded
   bool isVerbose;   // false == only enable warning/error messages
   int idleTimeout;  // 0 == idle time in minutes to trigger unmount
@@ -84,6 +94,7 @@ struct EncFS_Args {
   string toString() {
     ostringstream ss;
     ss << (isDaemon ? "(daemon) " : "(fg) ");
+    ss << (isFork ? "(fork) " : "(encfs) ");
     ss << (isThreaded ? "(threaded) " : "(UP) ");
     if (idleTimeout > 0) {
       ss << "(timeout " << idleTimeout << ") ";
@@ -127,7 +138,7 @@ static int oldStderr = STDERR_FILENO;
 
 static void usage(const char *name) {
   // xgroup(usage)
-  cerr << autosprintf(_("Build: encfs version %s"), VERSION) << "\n\n"
+  cerr << autosprintf(_("Build: encfs4win version %s"), VERSION) << "\n\n"
        // xgroup(usage)
        << autosprintf(
               _("Usage: %s [options] rootDir mountPoint [-- [FUSE Mount "
@@ -170,7 +181,7 @@ static void usage(const char *name) {
             "    encfs ~/.crypt ~/crypt\n"
             "\n")
        // xgroup(usage)
-       << _("For more information, see the man page encfs(1)") << "\n"
+       << _("For more information, visit https://github.com/jetwhiz/encfs4win") << "\n"
        << endl;
 }
 
@@ -182,8 +193,9 @@ static void FuseUsage() {
 
   int argc = 2;
   const char *argv[] = {"...", "-h"};
-  fuse_main(argc, const_cast<char **>(argv), (fuse_operations *)nullptr,
-            nullptr);
+  fuse_operations encfs_oper;
+  memset(&encfs_oper, 0, sizeof(fuse_operations));
+  fuse_main(argc, const_cast<char **>(argv), &encfs_oper, NULL);
 }
 
 #define PUSHARG(ARG)                        \
@@ -200,10 +212,19 @@ static string slashTerminate(const string &src) {
   return result;
 }
 
+static char *unslashTerminate(char *src)
+{
+	size_t l = strlen(src);
+	if (l > 1 && (src[l - 1] == '\\' || src[l - 1] == '/'))
+		src[l - 1] = 0;
+	return src;
+}
+
 static bool processArgs(int argc, char *argv[],
                         const std::shared_ptr<EncFS_Args> &out) {
   // set defaults
   out->isDaemon = true;
+  out->isFork = false;
   out->isThreaded = true;
   out->isVerbose = false;
   out->idleTimeout = 0;
@@ -255,6 +276,7 @@ static bool processArgs(int argc, char *argv[],
       {"standard", 0, nullptr, '1'},              // standard configuration
       {"paranoia", 0, nullptr, '2'},              // standard configuration
       {"require-macs", 0, nullptr, LONG_OPT_REQUIRE_MAC},  // require MACs
+      {"forked", 0, 0, LONG_OPT_FORKED},  // is process forked?  
       {nullptr, 0, nullptr, 0}};
 
   while (true) {
@@ -297,6 +319,9 @@ static bool processArgs(int argc, char *argv[],
         break;
       case LONG_OPT_REQUIRE_MAC:
         out->opts->requireMac = true;
+        break;
+      case LONG_OPT_FORKED:
+        out->isFork = true;
         break;
       case 'f':
         out->isDaemon = false;
@@ -375,15 +400,11 @@ static bool processArgs(int argc, char *argv[],
         out->opts->passwordProgram.assign(optarg);
         break;
       case 'P':
-        if (geteuid() != 0) {
-          RLOG(WARNING) << "option '--public' ignored for non-root user";
-        } else {
           out->opts->ownerCreate = true;
           // add 'allow_other' option
           // add 'default_permissions' option (default)
           PUSHARG("-o");
           PUSHARG("allow_other");
-        }
         break;
       case 'V':
         // xgroup(usage)
@@ -416,13 +437,17 @@ static bool processArgs(int argc, char *argv[],
     PUSHARG("-s");
   }
 
+  // Make Dokany think we're always in foreground mode
+  //  in order to force our implementation of bg mode 
+  PUSHARG("-f");
+
   // we should have at least 2 arguments left over - the source directory and
   // the mount point.
   if (optind + 2 <= argc) {
     // both rootDir and mountPoint are assumed to be slash terminated in the
     // rest of the code.
-    out->opts->rootDir = slashTerminate(argv[optind++]);
-    out->opts->mountPoint = slashTerminate(argv[optind++]);
+    out->opts->rootDir = slashTerminate(unslashTerminate(argv[optind++]));
+    out->opts->mountPoint = unslashTerminate(argv[optind++]);
   } else {
     // no mount point specified
     cerr << _("Missing one or more arguments, aborting.");
@@ -477,7 +502,7 @@ static bool processArgs(int argc, char *argv[],
 
   // the raw directory may not be a subdirectory of the mount point.
   {
-    string testMountPoint = out->opts->mountPoint;
+    string testMountPoint = slashTerminate(out->opts->mountPoint);
     string testRootDir = out->opts->rootDir.substr(0, testMountPoint.length());
 
     if (testMountPoint == testRootDir) {
@@ -505,12 +530,15 @@ static bool processArgs(int argc, char *argv[],
   }
 
   // check that the directories exist, or that we can create them..
+  if (out->opts->rootDir.length() > 3)
   if (!isDirectory(out->opts->rootDir.c_str()) &&
       !userAllowMkdir(out->opts->annotate ? 1 : 0, out->opts->rootDir.c_str(),
                       0700)) {
     cerr << _("Unable to locate root directory, aborting.");
     return false;
   }
+
+  if (out->opts->mountPoint.length() > 3)
   if (!isDirectory(out->opts->mountPoint.c_str()) &&
       !userAllowMkdir(out->opts->annotate ? 2 : 0,
                       out->opts->mountPoint.c_str(), 0700)) {
@@ -520,6 +548,13 @@ static bool processArgs(int argc, char *argv[],
 
   // fill in mount path for fuse
   out->fuseArgv[1] = out->opts->mountPoint.c_str();
+
+  // Temporary fix (hopefully) for issue #51
+  // Must mount to drive letter, otherwise there are case-sensitivity issues 
+  if (!out->opts->mountPoint.empty() && out->opts->mountPoint.back() != ':')
+  {
+    RLOG(WARNING) << "Caution: Mount directly to a drive letter (e.g., X:) to prevent file/folder not found issues!";
+  }
 
   return true;
 }
@@ -531,6 +566,11 @@ void *encfs_init(fuse_conn_info *conn) {
 
   // set fuse connection options
   conn->async_read = 1u;
+
+  if (ctx->args->isDaemon) {
+    // Switch to using syslog. Not compatible with Windows 
+    //encfs::rlogAction = el::base::DispatchAction::SysLog;
+  }
 
   // if an idle timeout is specified, then setup a thread to monitor the
   // filesystem.
@@ -556,7 +596,43 @@ void *encfs_init(fuse_conn_info *conn) {
   return (void *)ctx;
 }
 
+void encfs_destroy(void *_ctx) {}
+
+#if defined(WIN32)
+  namespace encfs {
+    void init_mpool_mutex();
+  }
+
+  // Predef signal handler 
+  BOOL WINAPI signal_callback_handler(DWORD dwType);
+#endif 
+
 int main(int argc, char *argv[]) {
+
+#if defined(WIN32)
+  // Ensure the dokan library exists beforehand 
+  HINSTANCE hinstLib;
+#ifdef USE_LEGACY_DOKAN
+  hinstLib = LoadLibrary(TEXT("dokan.dll"));
+#else
+  hinstLib = LoadLibrary(TEXT("dokan1.dll"));
+#endif
+  if (hinstLib == NULL) {
+    RLOG(ERROR) << "ERROR: Unable to load Dokan FUSE library";
+    return EXIT_FAILURE;
+  }
+  FreeLibrary(hinstLib);
+
+  SetConsoleCP(65001); // set utf-8
+  encfs::init_mpool_mutex();
+
+  // Register signal handler
+  if (!SetConsoleCtrlHandler((PHANDLER_ROUTINE)signal_callback_handler, TRUE)) {
+    RLOG(ERROR) << "Unable to install callback handler";
+    return EXIT_FAILURE;
+  }
+#endif
+
 #if defined(ENABLE_NLS) && defined(LOCALEDIR)
   setlocale(LC_ALL, "");
   bindtextdomain(PACKAGE, LOCALEDIR);
@@ -578,6 +654,86 @@ int main(int argc, char *argv[]) {
   encfs::initLogging(encfsArgs->isVerbose, encfsArgs->isDaemon);
   ELPP_INITIALIZE_SYSLOG(encfsArgs->syslogTag.c_str(), LOG_PID, LOG_USER);
 
+  // fork encfs if we want a daemon (only if not already forked) 
+  if (encfsArgs->isDaemon && !encfsArgs->isFork) {
+    VLOG(1) << "Forking encfs as child\n";
+
+    PROCESS_INFORMATION piProcInfo;
+    STARTUPINFO siStartInfo;
+    BOOL bSuccess = FALSE;
+
+    SECURITY_ATTRIBUTES saAttr;
+    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+    saAttr.bInheritHandle = TRUE;
+    saAttr.lpSecurityDescriptor = NULL;
+
+    // Set up members of the PROCESS_INFORMATION structure. 
+    ZeroMemory(&piProcInfo, sizeof(PROCESS_INFORMATION));
+
+    // Set up members of the STARTUPINFO structure. 
+    // This structure specifies the STDIN and STDOUT handles for redirection.
+    ZeroMemory(&siStartInfo, sizeof(STARTUPINFO));
+    siStartInfo.cb = sizeof(STARTUPINFO);
+    siStartInfo.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    siStartInfo.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    siStartInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
+
+    // Copy over args 
+    std::string args = "encfs.exe --forked ";
+    char *cmd_raw = GetCommandLine();
+    char *arg_appends = strstr(cmd_raw, argv[0]);
+    if (arg_appends == NULL) {
+      // If an error occurs, exit the application. 
+      cerr << _("Internal error: Failed to process argv for fork\n");
+      cerr << "argv[0]: " << _(argv[0]) <<endl;
+      cerr << "GetCommandLine: " << _(GetCommandLine()) <<endl;
+      return EXIT_FAILURE;
+    }
+    arg_appends += strlen(argv[0]) + (arg_appends - cmd_raw) + 1; // skip argv[0]
+    args.append(arg_appends);
+
+    // Create the child process. 
+    LPSTR prog = _strdup(args.c_str());
+    bSuccess = CreateProcess(NULL,
+      prog,     // command line 
+      NULL,          // process security attributes 
+      NULL,          // primary thread security attributes 
+      TRUE,          // handles are inherited 
+      CREATE_NEW_PROCESS_GROUP,             // creation flags 
+      NULL,          // use parent's environment 
+      NULL,          // use parent's current directory 
+      &siStartInfo,  // STARTUPINFO pointer 
+      &piProcInfo);  // receives PROCESS_INFORMATION 
+    if (!bSuccess) {
+      // If an error occurs, exit the application. 
+      cerr << _("Internal error: CreateProcess has failed to fork encfs.exe\n");
+      return EXIT_FAILURE;
+    }
+
+    // Wait indefinitely for mount (or problem) 
+    for (;;) {
+      DWORD waitCode = WaitForSingleObject(piProcInfo.hProcess, 500);
+
+      // Check if the wait failed
+      if (waitCode == WAIT_FAILED) {
+        cerr << _("Internal error: Forked child process has encountered an error!\n");
+        ExitProcess(GetLastError());
+      }
+
+      // If all is well, check if FS is mounted yet (stop waiting if it is) 
+      if (GetDriveType(encfsArgs->opts->mountPoint.c_str()) != DRIVE_NO_ROOT_DIR)
+        break;
+
+      // If the wait didn't timeout, child has exited/signalled
+      // Should we return child's exit code with GetExitCodeProcess? 
+      if (waitCode != WAIT_TIMEOUT)
+        break;
+    }
+
+    return EXIT_SUCCESS;
+  }
+
   VLOG(1) << "Root directory: " << encfsArgs->opts->rootDir;
   VLOG(1) << "Fuse arguments: " << encfsArgs->toString();
 
@@ -589,7 +745,6 @@ int main(int argc, char *argv[]) {
 
   encfs_oper.getattr = encfs_getattr;
   encfs_oper.readlink = encfs_readlink;
-  encfs_oper.readdir = encfs_readdir;
   encfs_oper.mknod = encfs_mknod;
   encfs_oper.mkdir = encfs_mkdir;
   encfs_oper.unlink = encfs_unlink;
@@ -620,12 +775,21 @@ int main(int argc, char *argv[]) {
   // encfs_oper.fsyncdir = encfs_fsyncdir;
   encfs_oper.init = encfs_init;
   // encfs_oper.access = encfs_access;
+#ifndef USE_LEGACY_DOKAN
+  encfs_oper.readdir = encfs_readdir;
   encfs_oper.create = encfs_create;
+#else
+  encfs_oper.getdir = encfs_getdir;  // deprecated for readdir
+#endif
   encfs_oper.ftruncate = encfs_ftruncate;
   encfs_oper.fgetattr = encfs_fgetattr;
   // encfs_oper.lock = encfs_lock;
   encfs_oper.utimens = encfs_utimens;
   // encfs_oper.bmap = encfs_bmap;
+
+#ifdef WIN32
+    win_encfs_oper_init(encfs_oper);
+#endif
 
   openssl_init(encfsArgs->isThreaded);
 
@@ -634,6 +798,9 @@ int main(int argc, char *argv[]) {
   auto ctx = std::make_shared<EncFS_Context>();
   ctx->publicFilesystem = encfsArgs->opts->ownerCreate;
   RootPtr rootInfo = initFS(ctx.get(), encfsArgs->opts);
+
+  // Remember our context for (Windows) signal handling 
+  saved_ctx = ctx;
 
   int returnCode = EXIT_FAILURE;
 
@@ -659,12 +826,34 @@ int main(int argc, char *argv[]) {
 
     // reset umask now, since we don't want it to interfere with the
     // pass-thru calls..
-    umask(0);
+    _umask(0);
 
     if (encfsArgs->isDaemon) {
       // keep around a pointer just in case we end up needing it to
       // report a fatal condition later (fuse_main exits unexpectedly)...
-      oldStderr = dup(STDERR_FILENO);
+      oldStderr = _dup(STDERR_FILENO);
+
+      // Let go of the console (disables CTRL signals, etc.) 
+      FreeConsole();
+
+      // Create TMP file to log output to 
+      TCHAR tmpPathBuff[MAX_PATH];
+      if (!GetTempPath(MAX_PATH, tmpPathBuff)) {
+        cerr << _("Failed to find valid TMP directory for logging.\n");
+        return EXIT_FAILURE;
+      }
+      TCHAR tmpFileName[MAX_PATH];
+      if (!GetTempFileName(tmpPathBuff, "encfs4win", 0, tmpFileName)) {
+        cerr << _("Failed to create TMP file for logging.\n");
+        return EXIT_FAILURE;
+      }
+
+      // Redirect stdout/stderr to log file 
+      freopen(tmpFileName, "w", stdout);
+      freopen(tmpFileName, "w", stderr);
+
+      // Turn off stdin 
+      freopen("NUL", "r", stdin);
     }
 
     try {
@@ -698,7 +887,7 @@ int main(int argc, char *argv[]) {
           (endTime - startTime <= 1)) {
         // the users will not have seen any message from fuse, so say a
         // few words in libfuse's memory..
-        FILE *out = fdopen(oldStderr, "a");
+        FILE *out = _fdopen(oldStderr, "a");
         // xgroup(usage)
         fputs(_("fuse failed.  Common problems:\n"
                 " - fuse kernel module not installed (modprobe fuse)\n"
@@ -786,3 +975,83 @@ static void *idleMonitor(void *_arg) {
 
   return nullptr;
 }
+
+static bool unmountFS(EncFS_Context *ctx) {
+  std::shared_ptr<EncFS_Args> arg = ctx->args;
+  if (arg->opts->mountOnDemand) {
+    VLOG(1) << "Detaching filesystem: "
+            << arg->opts->mountPoint;
+
+    ctx->setRoot(std::shared_ptr<DirNode>());
+    return false;
+  } else {
+    // Time to unmount!
+#if FUSE_USE_VERSION < 30
+    fuse_unmount(arg->opts->mountPoint.c_str(), NULL);
+#else
+    fuse_unmount(fuse_get_context()->fuse);
+#endif
+    // fuse_unmount succeeds and returns void
+    RLOG(INFO) << "Filesystem inactive, unmounted: " << arg->opts->mountPoint;
+    return true;
+  }
+}
+
+#ifdef WIN32
+// This function will be called when ctrl-c (SIGINT) signal is sent 
+BOOL WINAPI signal_callback_handler(DWORD dwType)
+{
+  // Ensure context has been defined
+  if (!saved_ctx) {
+    VLOG(1) << "ConsoleHandler: Nothing to do!";
+    ExitProcess(0);
+    return FALSE;
+  }
+  
+  // Unmount only if mounted 
+  if (saved_ctx->isMounted()) {
+    switch (dwType) {
+    case CTRL_C_EVENT:
+    case CTRL_BREAK_EVENT:
+    case CTRL_CLOSE_EVENT:
+    case CTRL_LOGOFF_EVENT:
+    case CTRL_SHUTDOWN_EVENT:
+
+      pthread_mutex_lock(&saved_ctx->wakeupMutex);
+
+      // cleanly unmount FS 
+      VLOG(1) << "ConsoleHandler: Unmounting filesystem";
+      if (unmountFS(saved_ctx.get())) {
+        // wait for main thread to wake us up
+        pthread_cond_wait(&saved_ctx->wakeupCond, &saved_ctx->wakeupMutex);
+      }
+
+      pthread_mutex_unlock(&saved_ctx->wakeupMutex);
+
+      break;
+    default:
+      RLOG(ERROR) << "ConsoleHandler: Unrecognized signal caught";
+      return FALSE;
+    }
+  }
+
+
+  VLOG(1) << "ConsoleHandler: Perform cleanup";
+
+  int res = -EIO;
+  std::shared_ptr<DirNode> FSRoot = saved_ctx->getRoot(&res);
+  if (!FSRoot) {
+    RLOG(ERROR) << "ConsoleHandler: No FSRoot!";
+    return FALSE;
+  }
+
+  FSRoot.reset();
+  saved_ctx->setRoot(std::shared_ptr<DirNode>());
+
+  MemoryPool::destroyAll();
+  openssl_shutdown(saved_ctx->args->isThreaded);
+
+  ExitProcess(0);
+  return TRUE;
+}
+#endif
