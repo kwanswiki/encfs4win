@@ -98,6 +98,7 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
   end = buf + bufsiz - 1;
   for (p = buf; (ch = _getch()) != EOF && ch != '\n' && ch != '\r';) {
     if (p < end) {
+      ch &= 0xff;
       if ((flags & RPP_SEVENBIT) != 0) {
         ch &= 0x7f;
       }
@@ -116,7 +117,7 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
   save_errno = errno;
   fprintf(stderr, "\n");
   errno = save_errno;
-  return (ch == -1 ? nullptr : buf);
-}
+  return (ch == EOF ? nullptr : buf);
+  }
 
 #endif

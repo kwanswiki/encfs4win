@@ -1514,6 +1514,9 @@ std::string readPassword(HANDLE FD) {
   if (!result.empty() && result[result.length() - 1] == '\n') {
     result.resize(result.length() - 1);
   }
+  if (!result.empty() && result[result.length() - 1] == '\r') {
+    result.resize(result.length() - 1);
+  }
 
   return result;
 }
