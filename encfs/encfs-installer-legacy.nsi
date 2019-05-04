@@ -3,7 +3,7 @@
  
 ; HM NIS Edit Wizard helper defines
 !define PRODUCT_NAME "encfs4win"
-!define PRODUCT_VERSION "1.10.1-RC14"
+!define PRODUCT_VERSION "1.10.1"
 !define PRODUCT_PUBLISHER "CEMi4"
 !define HELPURL "https://github.com/jetwhiz/encfs4win"
 !define ABOUTURL "https://encfs.win"
