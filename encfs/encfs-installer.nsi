@@ -9,7 +9,7 @@
 
 ; Additional defines that can be given via cmd line
 !ifndef PRODUCT_VERSION
-  !define PRODUCT_VERSION "1.11.0-beta1"
+  !define PRODUCT_VERSION "1.11.0-beta.1"
 !endif
 
 !ifndef DOKAN_VERSION
