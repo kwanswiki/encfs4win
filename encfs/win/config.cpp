@@ -10,6 +10,12 @@
 
 using namespace std;
 
+// Config for mount points are stored in Microsoft Windows Registry
+// under HKEY_CURRENT_USER\Software\EncFS
+// config entries are stored under:
+//      HKEY_CURRENT_USER\Software\EncFS\Drive1
+//      HKEY_CURRENT_USER\Software\EncFS\Drive2
+//      etc.
 static const char rootKeyName[] = "SOFTWARE\\EncFS";
 
 static HKEY RootKey()
